@@ -1639,18 +1639,23 @@ plotlags = args['plotlags']
 
 #Group covariance spectrum
 groupscale = args['groupscale']
+storagedir = "lags"
 
-keyobsid = "epn*net*obs*_1_*en2*comp*.lc"
+loc = os.getcwd()
+os.chdir(loc + "/" + storagedir + "/")
+
+keyobsid = "epn*net*obs*0830540201*_1_*en4*comp*.lc"
 obsidnum = []
 for fobsid in sorted(glob.glob(keyobsid)):
     obsid = fobsid.split(".lc")[0].split("_")[2].split("obs")[1]
     obsidnum.append(obsid)
 obsidnum = np.array(obsidnum)
 obsidnum = np.unique(obsidnum)
+
 Mseg = 1
 ctsthreshpoisson = 10
 siglag = 1.0
-source = "NGC 5204 X-1"
+source = "Ark 564"
 instarr = ["epn"]
 labinst = ["EPN"]
 col = ["bo","go","ro"]
@@ -1662,17 +1667,17 @@ removebt = "False"
 metmcmc = "timelags"
 
 for kn in range(len(obsidnum)):   
-                
+                            
     Nenergies = 0
-    for jn in sorted(glob.glob("epn*net*"+str(obsidnum[kn])+ "*_1_*ref*.lc")):
+    for jn in sorted(glob.glob("epn*net*" + str(obsidnum[kn])+\
+                               "*_1_*ref*.lc")):
         Nenergies += 1  
-            
+                    
     keyobs1 = "epn_net_obs*"
-    keyobs2 = "*_1_*en2*ref.lc"
+    keyobs2 = "*_1_*en4*ref.lc"
             
     for tempreflcfile in sorted(glob.glob(keyobs1+str(obsidnum[kn])+keyobs2)):
-        
-                                                
+                                                                
         for ln in range(len(fminb)):
                                     
             cov,dcov,covtd,dcovtd,fvarc,fvarcerr = [[],[],[],[],[],[]]
@@ -1698,6 +1703,7 @@ for kn in range(len(obsidnum)):
                     #Reference band
                     reflcfile = "epn_net_obs" + str(ObsId) +\
                     "_" + str(visnum) + "_" + "en" + str(ennum) + "_ref.lc"
+                                        
                     hdulistref = fits.open(reflcfile)
                     dataref = hdulistref[1].data
                     timeref = dataref['TIME']  
@@ -1708,7 +1714,7 @@ for kn in range(len(obsidnum)):
                     tstopR = hdulistref[2].data['STOP']
                     bsizeref = timeref[1]-timeref[0]
                     telapse = timeref[-1]-timeref[0]
-                                        
+                                                                                
                     #Reference band (background)
                     refbkgfile = "epn_bkg_obs" + ObsId +\
                     "_" + str(visnum) + "_" + "en" + str(ennum) + "_ref.lc"
@@ -1726,7 +1732,7 @@ for kn in range(len(obsidnum)):
                     ratecomp = hducomp[1].data['RATE']
                     errorcomp = hducomp[1].data['ERROR']
                     obsidcomp = hducomp[0].header['OBS_ID']
-                                    
+                                                        
                     #Comparison band (background)         
                     compbkgfile = "epn_net_obs" + str(ObsId) + "_" +\
                     str(visnum) + "_" + "en" + str(ennum) + "_comp.lc" 
@@ -1767,7 +1773,7 @@ for kn in range(len(obsidnum)):
                     arraysWc = np.transpose(np.column_stack((timeref,\
                                                              ratecomp)))
                     windowcomp = rect_window(arraysWc,tstartC,tstopC)
-                                        
+                                                            
                     infilecov = "covflux" + str(ln+1) +\
                     "_" + str(ObsId) + ".dat"
                     outfilecov = "covspec" + str(ln+1) +\
@@ -1779,7 +1785,7 @@ for kn in range(len(obsidnum)):
                     if(splitscheme=="True"):
                                                                                     
                         if (telapse > 100*ks):
-                            Mseg = 14
+                            Mseg = 20
                     
                         if (telapse > 50*ks and telapse <= 100*ks):
                             Mseg = 10
@@ -1793,7 +1799,7 @@ for kn in range(len(obsidnum)):
                         if (telapse <= 15*ks):
                             Mseg = 1
                                         
-                    quantcomp = hducomp[1].header['DSVAL5']
+                    quantcomp = hducomp[1].header['DSVAL6']
                     
                     if(quantcomp!='TABLE'):
                                                                         
@@ -1811,7 +1817,7 @@ for kn in range(len(obsidnum)):
                     
                     if(quantcomp=='TABLE'):
                                                 
-                        quantcomp = hducomp[1].header['DSVAL6']
+                        quantcomp = hducomp[1].header['DSVAL5']
                                                                         
                         energymin = float(quantcomp.split(",")[0]\
                                        .split(":")[0])/1000.0
@@ -1823,8 +1829,8 @@ for kn in range(len(obsidnum)):
                         energiesref.append(energiesmean)
                         denergiesref.append(denergiesmean)
                         enlag.append(energiesmean)
-                        denlag.append(denergiesmean) 
-                                                                                                    
+                        denlag.append(denergiesmean)
+                                                                                                                                                                
                     if(len(rateref)>0):
                         
                         windowcomb = np.array(windowref)
@@ -2046,6 +2052,7 @@ for kn in range(len(obsidnum)):
                                          label=labelsrccomp,\
                                          fmt='b.')
                             
+                            
                             if(fillgaps=="True" and fillmethod=="B"):
                                 
                                 plt.errorbar(timesimref/ks,refsimlc,\
@@ -2055,7 +2062,7 @@ for kn in range(len(obsidnum)):
                                 yerr=errcompsimlc,fmt='k.',\
                                 label="Interpolated: Bootstrapped")
                                     
-                            # plt.plot(timecombref/ks,windowcomb,'m-')
+                            plt.plot(timecombref/ks,windowcomb,'m-')
                             plt.tick_params(axis='both', which='major',\
                                             labelsize=14)
                             plt.legend(loc="upper right")
@@ -2202,8 +2209,7 @@ for kn in range(len(obsidnum)):
                         if(plotpsd=="True"):
                             
                             plt.figure()
-                            plt.title("PSD (NGC 5204 X-1), Obs ID: " +\
-                                      str(ObsId))
+                            plt.title("PSD " + str(source) + " Obs ID: " + str(ObsId))
                             plt.errorbar(psdref.freq,psdref.power,\
                                          yerr=psdref.power_err,fmt='r.',\
                                          label="Reference band")
@@ -2259,35 +2265,37 @@ for kn in range(len(obsidnum)):
                         # using my method
                         bfactorlags = 1.0
                         freqS, dfreqS, lagS, lag_eS, cohS, coh_eS =\
-                        time_lag_func(complccomb,errcomplccomb,\
-                                      reflccomb,errreflccomb,\
-                                      complcbkgcomb,reflcbkgcomb,windowcomb,\
-                                      Mseg,bfactorlags,bsizeref,stats)
+                        time_lag_func(reflccomb,errreflccomb,\
+                        complccomb,errcomplccomb,reflcbkgcomb,\
+                        complcbkgcomb,windowcomb,\
+                        Mseg,bfactorlags,bsizeref,stats)
                         
+                                                                                                
                         # Compute time lags (lag-frequency spectrum)
                         # using my method
                         bfactorlags = bfactor
                         FreqS, dFreqS, lagfreqS, lagfreq_eS,\
                         cohfreqS, cohfreq_eS =\
-                        time_lag_func(complccomb,errcomplccomb,\
-                                      reflccomb,errreflccomb,\
-                                      complcbkgcomb,reflcbkgcomb,windowcomb,\
-                                      Mseg,bfactorlags,bsizeref,stats)
-                                                        
+                        time_lag_func(reflccomb,errreflccomb,\
+                        complccomb,errcomplccomb,reflcbkgcomb,\
+                        complcbkgcomb,windowcomb,\
+                        Mseg,bfactorlags,bsizeref,stats)
+                                                
                         lagfreqS = lagfreqS/(2.0*np.pi*FreqS)
                         lagfreq_eS = lagfreq_eS/(2.0*np.pi*FreqS)
                         
                         if(plotlags=="True"):
                         
-                            plt.errorbar(FreqS,lagfreqS,yerr=lagfreq_eS,\
+                            plt.errorbar(FreqS,-lagfreqS,yerr=lagfreq_eS,\
                                          fmt='ko')
-                            plt.errorbar(FreqS,lagfreqS,yerr=lagfreq_eS,\
+                            plt.errorbar(FreqS,-lagfreqS,yerr=lagfreq_eS,\
                             markersize=8,marker='o',linestyle='dotted')                            
                             plt.xscale("log")
+                            plt.xlim(7e-5,2e-3)
                             plt.xlabel("Frequency [Hz]",\
                                        fontsize=14)
-                            plt.title("Lag frequency spectrum [NGC 5204 X-1]",\
-                                      fontsize=14)
+                            plt.title("Lag frequency spectrum [" +\
+                                      str(source) + "]",fontsize=14)
                             plt.ylabel("Time lag [s]",fontsize=14)
                             plt.tick_params(axis='both',\
                             which='major',labelsize=16)
@@ -2309,7 +2317,7 @@ for kn in range(len(obsidnum)):
                         reflccomb,errreflccomb,complcbkgcomb,\
                         reflcbkgcomb,Mseg,bfactor,bsizeref,\
                         statpow,fminb[ln],fmaxb[ln],windowcomb,removebt)
-                            
+                
                         cov.append(intcov)
                         dcov.append(intcoverr)
                         
@@ -2414,7 +2422,7 @@ for kn in range(len(obsidnum)):
                                     
                                     if(kiter>niter or abs(diff)<sigthresh):
                                         break
-                                            
+                                                            
                             tlagS = lagS/(2.0*np.pi*freqS)
                             tlag_eS = lag_eS/(2.0*np.pi*freqS)
                             tlag = lagp/(2.0*np.pi*freq_lag)
@@ -2426,7 +2434,8 @@ for kn in range(len(obsidnum)):
                             np.sqrt(np.sum(tlag_eS**2))/len(tlagS)
                             mean_fb = np.mean(freq_lag)
                             mean_lag = np.median(tlag)
-                            mean_lagerr = np.sqrt(np.sum(tlag_e**2))/len(tlag)
+                            mean_lagerr =\
+                            np.sqrt(np.sum(tlag_e**2))/len(tlag)
                                                         
                             mlagS.append(mean_lagS)
                             mlagerrS.append(mean_lagSerr)
@@ -2443,7 +2452,7 @@ for kn in range(len(obsidnum)):
             dcov = np.array(dcov)
             energiesref = np.array(energiesref)
             denergiesref = np.array(denergiesref)
-                                            
+                                                                        
             mufakelag = np.array(mufakelag)
             fakelagerr = np.array(fakelagerr)
             confint1 = mufakelag - siglag*(0.5*fakelagerr)
@@ -2556,7 +2565,7 @@ for kn in range(len(obsidnum)):
                     mlagerr = np.array(mlagerr)
                     mufakelag = np.array(mufakelag)
                     fakelagerr = np.array(fakelagerr)
-                                                                                
+                                                                                                    
                     confint1 = mufakelag - 3*0.5*fakelagerr
                     confint2 = mufakelag + 3*0.5*fakelagerr
                     
@@ -2574,15 +2583,20 @@ for kn in range(len(obsidnum)):
                                                             
                     #Lag-energy spectrum
                     if(ln==0):
-                        ax1.set_title("Lag-energy spectrum NGC 5204 X-1:" +\
+                        ax1.set_title("Lag-energy spectrum " +\
+                        str(source) + ":" +\
                         " ObsID " + str(ObsId),fontsize=18)
                                         
-                    ax1.errorbar(enlag,mlagS/ks,xerr=denlag,yerr=mlagerrS/ks,\
+                    ax1.errorbar(enlag,mlagS/ks,xerr=abs(denlag),\
+                                 yerr=mlagerrS/ks,\
                     fmt=col[qinstr],alpha=0.5,label=lab1,\
                     markersize=8,marker='o',linestyle='dotted')
-                    ax1.errorbar(enlag,mlag/ks,xerr=denlag,yerr=mlagerr/ks,\
-                    fmt='k.',alpha=1.0,label="Stingray",\
-                    markersize=8,marker='o',linestyle='dotted')
+                    
+                    # ax1.errorbar(enlag,mlag/ks,\
+                    #              xerr=abs(denlag),yerr=mlagerr/ks,\
+                    # fmt='k.',alpha=1.0,label="Stingray",\
+                    # markersize=8,marker='o',linestyle='dotted')
+                        
                     ax1.tick_params(axis='both', which='major',labelsize=18)
                     ax1.set_xscale("log")
                     ax1.get_xaxis().\
