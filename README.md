@@ -20,7 +20,7 @@ Please install SAS by consulting the following web-page: https://www.cosmos.esa.
 
 Once the required packages are installed and the appropriate environment variables are set: 
 
-Simply run the following python file:
+Simply run the following python file as follows:
 
 python ~/Documents/SEAWIND/code/Communication/XcovSpec.py -srcname “Ark 564”  -obsids 0861600101,0861600201 -refemin 0.3 -refemax 12.0 -mincts 100 -minbcts 100 -dtbinqpo 100 -dtbincov 100 -dtbinbkg 100 -srad 0.0083 -brad 0.0083 -srcdet 1e-16 -rmflares False -texp 5 -plc False -plags False -ppsd True -split False -statpower False -normpower frac -flgaps True,B -seglc True,0,500 -fmin 1e-4 -fmax 5e-4 -gbin 1.0,0.0 -gscale 1 -rmcmc False,1000 -gencov True -psdmods False -egrid minmax,0.3,10.0,16 -aflag True -psearch True -bsub True
 
