@@ -102,4 +102,5 @@ options:
   -psearch PULSE_SEARCH, --pulse_search PULSE_SEARCH Extract light-curves with DT=DTMIN=73ms?
                         
   -bsub BKG_SUB, --bkg_sub BKG_SUB Use epiclccorr to subtract background?
-                      
+
+  Upcoming: Tools to model lag-energy spectra, lag-frequency spectra, time-averaged spectra and light-curves etc.
