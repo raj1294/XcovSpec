@@ -35,72 +35,71 @@ usage: XcovSpec.py [-h] -srcname SOURCENAME -plc PLOTLC -plags PLOTLAGS -ppsd PL
 Generate covariance spectra, lag-energy spectra plot power-spectral densities and plot light-curves
 
 options:
+
   -h, --help            show this help message and exit
-  -srcname SOURCENAME, --sourcename SOURCENAME
-                        Target Name
-  -plc PLOTLC, --plotlc PLOTLC
-                        Plot LC? [Enter either True or False]
-  -plags PLOTLAGS, --plotlags PLOTLAGS
-                        Plot Lag-energy spectrum? [Enter either True or False]
-  -ppsd PLOTPSD, --plotpsd PLOTPSD
-                        Plot PSD? [Enter either True or False]
-  -split SPLITSCHEME, --splitscheme SPLITSCHEME
-                        Segment LC? [Enter either True or False]
-  -statpower STATSPSD, --statspsd STATSPSD
-                        Does the LC follow a Poisson distribution? [Enter either True or False]
-  -normpower NORMPSD, --normpsd NORMPSD
-                        Enter normalisation of PSD [abs or frac or leahy]
-  -refemin REFERENCE_ENERGY_MIN, --reference_energy_min REFERENCE_ENERGY_MIN
-                        Reference-band minimum energy [keV]
-  -refemax REFERENCE_ENERGY_MAX, --reference_energy_max REFERENCE_ENERGY_MAX
-                        Reference-band maximum energy [keV]
-  -flgaps FILLGAPS, --fillgaps FILLGAPS
-                        Fill LC gaps? [Enter 2 values separated by comma of type: Boolean(Enter either True or False) String(Interpolation scheme: Enter
-                        B (bootstrapping) ,T (timmer-koenig) or S (window deconvolution))
-  -seglc SEGMENTLC, --segmentlc SEGMENTLC
-                        Segment LC? [Enter 3 values separated by comma of type: True/False (Boolean), Start of LC in ks (float), End of LC in ks
-                        (float)]
-  -fmin FREQMIN, --freqmin FREQMIN
-                        Minimum Fourier Frequency for Covariance [Enter a floating point value in Hz]
-  -fmax FREQMAX, --freqmax FREQMAX
-                        Maximum Fourier Frequency for Covariance [Enter a floating point value in Hz]
-  -gbin GEOMBIN, --geombin GEOMBIN
-                        Geometric binning factor [Enter two floating point values]
-  -gscale GROUPSCALE, --groupscale GROUPSCALE
-                        Scaling factor to group Covariance spectrum [Enter an integer value]
-  -rmcmc RUNMCMC, --runmcmc RUNMCMC
-                        Run MCMC? [Enter 2 values separated by comma of type: Boolean(Enter either True or False), Int(Enter number of MCMC simulations)
-  -psdmods POWSPECMOD, --powspecmod POWSPECMOD
-                        Model power spectral density? [Enter either True or False]
-  -egrid ENERGY_GRID, --energy_grid ENERGY_GRID
-                        Specify comparison-band energy grid [in keV]
-  -gencov COVSPEC, --covspec COVSPEC
-                        Generate Covariance Spectrum? [Enter either True or False]
-  -mincts MINIMUM_CTS, --minimum_cts MINIMUM_CTS
-                        Minimum counts in source spectrum
-  -minbcts MINIMUM_CTS_BKG, --minimum_cts_bkg MINIMUM_CTS_BKG
-                        Minimum counts in background spectrum
-  -srad SRCRAD, --srcrad SRCRAD
-                        Target Name
-  -brad BKGRAD, --bkgrad BKGRAD
-                        Background extraction radius [in degrees]
-  -rmflares REMOVE_BKG_FLARES, --remove_bkg_flares REMOVE_BKG_FLARES
-                        Remove background flares?
-  -srcdet SIGTHRESH, --sigthresh SIGTHRESH
-                        Source detection threshold
-  -dtbinbkg BKG_BIN_TIME, --bkg_bin_time BKG_BIN_TIME
-                        Background binning time [in seconds]
-  -dtbincov BINNING_TIME_COV, --binning_time_cov BINNING_TIME_COV
-                        Binning time of LC for covariance spectra [in seconds]
-  -aflag ADD_FLAG, --add_flag ADD_FLAG
-                        Add Flag to extract events?
-  -obsids OBSERVATION_IDS, --observation_ids OBSERVATION_IDS
-                        List of Observation Identifiers
-  -texp THRESHOLD_EXP_TIME, --threshold_exp_time THRESHOLD_EXP_TIME
-                        Only use observation if elapsed time > tthresh [in ks]
-  -dtbinqpo BINNING_TIME_QPO, --binning_time_qpo BINNING_TIME_QPO
-                        Binning time of LC for QPO searches [in seconds]
-  -psearch PULSE_SEARCH, --pulse_search PULSE_SEARCH
-                        Extract light-curves with DT=DTMIN?
-  -bsub BKG_SUB, --bkg_sub BKG_SUB
-                        Use epiclccorr to subtract background?
+  
+  -srcname SOURCENAME, --sourcename SOURCENAME Target Name
+  
+  -plc PLOTLC, --plotlc PLOTLC Plot LC? [Enter either True or False]
+  
+  -plags PLOTLAGS, --plotlags PLOTLAGS Plot Lag-energy spectrum? [Enter either True or False]
+  
+  -ppsd PLOTPSD, --plotpsd PLOTPSD Plot PSD? [Enter either True or False]
+  
+  -split SPLITSCHEME, --splitscheme SPLITSCHEME Segment LC? [Enter either True or False]
+  
+  -statpower STATSPSD, --statspsd STATSPSD Does the LC follow a Poisson distribution? [Enter either True or False]
+  
+  -normpower NORMPSD, --normpsd NORMPSD Enter normalisation of PSD [abs or frac or leahy]
+  
+  -refemin REFERENCE_ENERGY_MIN, --reference_energy_min REFERENCE_ENERGY_MIN Reference-band minimum energy [keV]
+  
+  -refemax REFERENCE_ENERGY_MAX, --reference_energy_max REFERENCE_ENERGY_MAX Reference-band maximum energy [keV]
+                        
+  -flgaps FILLGAPS, --fillgaps FILLGAPS Fill LC gaps? [Enter 2 values separated by comma of type: Boolean(Enter either True or False) String(Interpolation scheme: Enter B (bootstrapping) , T (timmer-koenig) or S (window deconvolution))
+  
+  -seglc SEGMENTLC, --segmentlc SEGMENTLC Segment LC? [Enter 3 values separated by comma of type: True/False (Boolean), Start of LC in ks (float), End of LC in ks (float)]
+                        
+  -fmin FREQMIN, --freqmin FREQMIN Minimum Fourier Frequency for Covariance [Enter a floating point value in Hz]
+                        
+  -fmax FREQMAX, --freqmax FREQMAX Maximum Fourier Frequency for Covariance [Enter a floating point value in Hz]
+                        
+  -gbin GEOMBIN, --geombin GEOMBIN Geometric binning factor [Enter two floating point values]
+                        
+  -gscale GROUPSCALE, --groupscale GROUPSCALE Scaling factor to group Covariance spectrum [Enter an integer value]
+                        
+  -rmcmc RUNMCMC, --runmcmc RUNMCMC Run MCMC? [Enter 2 values separated by comma of type: Boolean(Enter either True or False), Int(Enter number of MCMC simulations)
+  -psdmods POWSPECMOD, --powspecmod POWSPECMOD Model power spectral density? [Enter either True or False]
+                        
+  -egrid ENERGY_GRID, --energy_grid ENERGY_GRID Specify comparison-band energy grid [in keV]
+                        
+  -gencov COVSPEC, --covspec COVSPEC Generate Covariance Spectrum? [Enter either True or False]
+                        
+  -mincts MINIMUM_CTS, --minimum_cts MINIMUM_CTS Minimum counts in source spectrum
+                        
+  -minbcts MINIMUM_CTS_BKG, --minimum_cts_bkg MINIMUM_CTS_BKG Minimum counts in background spectrum
+                        
+  -srad SRCRAD, --srcrad SRCRAD Target Name
+                        
+  -brad BKGRAD, --bkgrad BKGRAD Background extraction radius [in degrees]
+                        
+  -rmflares REMOVE_BKG_FLARES, --remove_bkg_flares REMOVE_BKG_FLARES Remove background flares?
+                        
+  -srcdet SIGTHRESH, --sigthresh SIGTHRESH Source detection threshold
+                        
+  -dtbinbkg BKG_BIN_TIME, --bkg_bin_time BKG_BIN_TIME Background binning time [in seconds]
+                        
+  -dtbincov BINNING_TIME_COV, --binning_time_cov BINNING_TIME_COV Binning time of LC for covariance spectra [in seconds]
+                        
+  -aflag ADD_FLAG, --add_flag ADD_FLAG Add Flag to extract events?
+                        
+  -obsids OBSERVATION_IDS, --observation_ids OBSERVATION_IDS List of Observation Identifiers
+                        
+  -texp THRESHOLD_EXP_TIME, --threshold_exp_time THRESHOLD_EXP_TIME Only use observation if elapsed time > tthresh [in ks]
+                        
+  -dtbinqpo BINNING_TIME_QPO, --binning_time_qpo BINNING_TIME_QPO Binning time of LC for QPO searches [in seconds]
+                        
+  -psearch PULSE_SEARCH, --pulse_search PULSE_SEARCH Extract light-curves with DT=DTMIN=73ms?
+                        
+  -bsub BKG_SUB, --bkg_sub BKG_SUB Use epiclccorr to subtract background?
+                      
