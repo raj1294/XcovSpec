@@ -21,7 +21,13 @@ day = 86400
 ##############################################################################
 
 def arguments():
-    
+
+    def str_to_str(value):
+            
+        value = str(value)
+            
+        return value
+
     def bool_to_psd(valarr):
             
         #Raise Exception
@@ -103,7 +109,10 @@ def arguments():
     parser.add_argument('-plc','--plotlc',\
     help='Plot LC? [Enter either True or False]',\
     required=True,type=bool_to_str,default=True)
-                        
+
+    parser.add_argument('-srcname','--sourcename',default='',\
+    help='Target Name',required=True,type=str_to_str)
+
     parser.add_argument('-plags','--plotlags',\
     help='Plot Lag-energy spectrum? [Enter either True or False]',\
     required=True,type=bool_to_str,default=True)
@@ -1644,7 +1653,7 @@ storagedir = "lags"
 loc = os.getcwd()
 os.chdir(loc + "/" + storagedir + "/")
 
-keyobsid = "epn*net*obs*0830540201*_1_*en4*comp*.lc"
+keyobsid = "epn*net*obs*0*_1_*en4*comp*.lc"
 obsidnum = []
 for fobsid in sorted(glob.glob(keyobsid)):
     obsid = fobsid.split(".lc")[0].split("_")[2].split("obs")[1]
@@ -1655,7 +1664,7 @@ obsidnum = np.unique(obsidnum)
 Mseg = 1
 ctsthreshpoisson = 10
 siglag = 1.0
-source = "Ark 564"
+srcname = args['sourcename']
 instarr = ["epn"]
 labinst = ["EPN"]
 col = ["bo","go","ro"]
@@ -1785,10 +1794,10 @@ for kn in range(len(obsidnum)):
                     if(splitscheme=="True"):
                                                                                     
                         if (telapse > 100*ks):
-                            Mseg = 20
+                            Mseg = 15
                     
                         if (telapse > 50*ks and telapse <= 100*ks):
-                            Mseg = 10
+                            Mseg = 12
                     
                         if (telapse > 25*ks and telapse <= 50*ks):
                             Mseg = 8
@@ -2209,7 +2218,8 @@ for kn in range(len(obsidnum)):
                         if(plotpsd=="True"):
                             
                             plt.figure()
-                            plt.title("PSD " + str(source) + " Obs ID: " + str(ObsId))
+                            plt.title("PSD " + str(srcname) +\
+                                      " Obs ID: " + str(ObsId))
                             plt.errorbar(psdref.freq,psdref.power,\
                                          yerr=psdref.power_err,fmt='r.',\
                                          label="Reference band")
@@ -2295,7 +2305,7 @@ for kn in range(len(obsidnum)):
                             plt.xlabel("Frequency [Hz]",\
                                        fontsize=14)
                             plt.title("Lag frequency spectrum [" +\
-                                      str(source) + "]",fontsize=14)
+                                      str(srcname) + "]",fontsize=14)
                             plt.ylabel("Time lag [s]",fontsize=14)
                             plt.tick_params(axis='both',\
                             which='major',labelsize=16)
@@ -2584,7 +2594,7 @@ for kn in range(len(obsidnum)):
                     #Lag-energy spectrum
                     if(ln==0):
                         ax1.set_title("Lag-energy spectrum " +\
-                        str(source) + ":" +\
+                        str(srcname) + ":" +\
                         " ObsID " + str(ObsId),fontsize=18)
                                         
                     ax1.errorbar(enlag,mlagS/ks,xerr=abs(denlag),\
