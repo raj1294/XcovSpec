@@ -123,7 +123,7 @@ srcradius = args['sourceradius'] #source extraction region size (in degrees)
 #LC bin time (for cov spec)
 bintimecov = args['binning_time_cov'] 
 #Set to frame time (for pulsations or QPOs)
-bintimepulse = args['binning_time_qpo'] 
+bintimepulse = args['binning_time_qpo']
 #Threshold exposure time
 tthresh = args['threshold_exp_time']*ks
 Emin = args['reference_energy_min'] #Ref EMIN
@@ -147,6 +147,9 @@ pirefmax = Emax*1000
 #Fixed parameters
 septhresh = 0.04 #Threshold separation
 dsep = 1e-5 #Adaptive separation step
+
+storagedir = "lags/"
+pulsations_dir = "pulsation_search/"
 
 stringcov,stringpulse = [[],[]]
 
@@ -270,7 +273,7 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                          str(bintimecov) +\
                          " maketimecolumn=yes makeratecolumn=yes"
                 
-                commbg2 = "cp " + str(bkgrate) + " ../../lags/" +\
+                commbg2 = "cp " + str(bkgrate) + " ../../" + storagedir +\
                             bkgrate_new
                 commbg3 = "ratethresh=$(bkgoptrate tssettabname=" +\
                              bkgrate + " | sed -n 3p)"
@@ -311,6 +314,8 @@ for ObsId in sorted(glob.glob(obsid+"*")):
             str(decdet) + "," + str(srcradius) +\
             ")' withfilteredset=Y filteredset=" +\
             filtevrefst    
+            
+            stringpulse.append(commfullband)
             
             stringcov.append(commfullband)
             stringcov.append("")
@@ -456,7 +461,6 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 
                 if(k==0 and psearch=="True"):
                     
-                                            
                     #Barycenter source event file
                     unfiltfile = "epn_obs" + str(srcfile[-6]) + ".fits"
                     commbarysrc = "barycen table=" + unfiltfile + ":EVENTS " +\
@@ -471,7 +475,7 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                     "timecolumn=TIME withsrccoordinates=yes srcra=" +\
                     str(raback) + " srcdec=" + str(decback) +\
                     " ephemeris=DE405"
-                    
+                                        
                     stringpulse.append(commbarysrc)
                     stringpulse.append(commbarybkg)
                                             
@@ -563,19 +567,21 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                     if(bkgsubepiclc=="False"):
                                                     
                         stringpulse.append("mv " + filtlcrefst +\
-                        " ../../lags/" + filtlcrefst)
+                        " ../../" + pulsations_dir + filtlcrefst)
                         stringpulse.append("mv " + filtlcbkgrefst +\
-                        " ../../lags/" + filtlcbkgrefst)
+                        " ../../" + pulsations_dir + filtlcbkgrefst)
                         stringpulse.append("mv " + filtev +\
-                        " ../../lags/" + newfiltev)
+                        " ../../" + pulsations_dir + newfiltev)
 
                     if(bkgsubepiclc=="True"):
                                                 
                         stringpulse.append("mv " + filtlcrefst +\
-                        " ../../lags/" + newfiltlcrefst)
+                        " ../../" + pulsations_dir + newfiltlcrefst)
                         stringpulse.append("mv " + filtlcbkgrefst +\
-                        " ../../lags/" + filtlcbkgrefst)
-                                            
+                        " ../../" + pulsations_dir + filtlcbkgrefst)
+                        stringpulse.append("mv " + filtevrefst +\
+                        " ../../" + pulsations_dir + newfiltevrefst)
+
                 #Filtered comparison-band lightcurve
                 srclc_comp = "epn_src_obs" + ObsId + "_" +\
                              str(srcfile[-6]) +\
@@ -656,17 +662,17 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 if(bkgsubepiclc=="False"):
 
                     stringcov.append("mv " + filtlcref +\
-                                  " ../../lags/" +\
-                                  newlcref)
+                                  " ../../" + storagedir + " " + newlcref)
+                                  
                     stringcov.append("mv " + srclc_comp +\
-                                  " ../../lags/" +\
-                                  newlc_comp)
+                                  " ../../" + storagedir + " " + newlc_comp)
+                                  
                     stringcov.append("mv " + filtlcbkg +\
-                                  " ../../lags/" +\
-                                  newlcbkgref)
+                                  " ../../" + storagedir + " " + newlcbkgref)
+                                  
                     stringcov.append("mv " + filtlcbkg_comp +\
-                                  " ../../lags/" +\
-                                  newlcbkgcomp)
+                                  " ../../" + storagedir + " " + newlcbkgcomp)
+                                  
                 
                 #Background reference-band and comparison-band LCs  
                 if(bkgsubepiclc=="True"):
@@ -681,16 +687,16 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                     stringcov.append(commbkgepiclc)
                                                                 
                     stringcov.append("mv " + newlcref +\
-                                     " ../../lags/" +\
+                                     " ../../" + storagedir + "/" +\
                                      newlcref)
                     stringcov.append("mv " + newlc_comp +\
-                                     " ../../lags/" +\
+                                     " ../../" + storagedir + "/" +\
                                      newlc_comp)
                     stringcov.append("mv " + newlcbkgref +\
-                                     " ../../lags/" +\
+                                     " ../../" + storagedir + "/" +\
                                      newlcbkgref)
                     stringcov.append("mv " + newlcbkgcomp +\
-                                     " ../../lags/" +\
+                                     " ../../" + storagedir + "/" +\
                                      newlcbkgcomp)
 
                     stringcov.append("")
@@ -707,7 +713,7 @@ np.savetxt("filter_lc_cov_epn.sh",stringcov,fmt='%s',delimiter='   ')
 os.system("chmod u+x filter_lc_cov_epn.sh")
 os.system("./filter_lc_cov_epn.sh")
 
-# np.savetxt("filter_lc_pulse.sh",stringpulse,fmt='%s',delimiter='   ')
-# os.system("chmod u+x filter_lc_pulse.sh")
-# os.system("./filter_lc_pulse.sh")
+np.savetxt("filter_lc_pulse.sh",stringpulse,fmt='%s',delimiter='   ')
+os.system("chmod u+x filter_lc_pulse.sh")
+os.system("./filter_lc_pulse.sh")
 

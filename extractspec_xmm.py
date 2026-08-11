@@ -80,10 +80,6 @@ def arguments():
     help='Reference-band maximum energy [keV]',\
     required=True,type=float)
 
-    parser.add_argument('-obsids','--observation_ids',default='',\
-    help='List of Observation Identifiers',\
-    required=True,type=obsid_str)
-
     parser.add_argument('-texp','--threshold_exp_time',default=1,\
     help='Only use observation if elapsed time > tthresh [in ks]',\
     required=False,type=float)
@@ -118,22 +114,16 @@ srcradiusbkg = args['bkgrad']
 mincts = args['minimum_cts']
 tthresh = args['threshold_exp_time']
 
-#Observation identifiers
-obsidsel = args['observation_ids']
-
 #Separation between catalogue ULX position and source detection 
 dsep = 1e-5 #Adaptive separation step
 septhresh = 0.04 
 ctref = 0
 
-if(len(obsidsel)==1):
-    dirkey = obsidsel[0] + "/proc/source_list*epn*.fits" 
-if(len(obsidsel)!=1):
-    dirkey = "0*/proc/source_list*epn*.fits" 
+dirkey = "0*/proc/source_list*epn*.fits" 
 storagedir = "lags/"
 stringspec = []
 for sourcefile in sorted(glob.glob(loc + dirkey)):
-                                                            
+                                                                
     hdu = fits.open(sourcefile)
     tbdata = hdu[1].data
     RA = tbdata['RA']
@@ -141,7 +131,7 @@ for sourcefile in sorted(glob.glob(loc + dirkey)):
     telapse = hdu[1].header['ONTIME']
     ObsId = hdu[1].header['OBS_ID']
     detnum = sourcefile[-6]
-                        
+                            
     culx = SkyCoord(ra_src,dec_src,unit="deg",frame='icrs')                            
     csrc = SkyCoord(RA,DEC,unit="deg",frame="icrs")
     ranew = csrc.ra.degree
@@ -268,7 +258,7 @@ for sourcefile in sorted(glob.glob(loc + dirkey)):
     stringspec.append(commarf)
                                 
     #Generate background region file
-    imagefile = loc + ObsId + "/proc/epnimage" + str(ctref) + ".fits"
+    imagefile = loc + ObsId + "/proc/epnimage1.fits"
     
     print("Please specify a background region file and",\
     "save in proc directory: In order to save it, use the region",\
