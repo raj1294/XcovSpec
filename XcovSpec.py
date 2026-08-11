@@ -331,7 +331,11 @@ for jen in range(len(stringargs)):
         energyargs += stringargs[jen]
         
 #Obs ID
-obsidsel = args['observation_ids'][0]
+obsidsel = args['observation_ids']
+stringobsidsel = ''
+for kobs in range(len(obsidsel)):
+    stringobsidsel += obsidsel[kobs] + ","
+stringobsidsel = stringobsidsel[0:-1]
 
 #Minimum source counts
 mincts = args['minimum_cts']
@@ -368,14 +372,10 @@ bkgsubepiclc = args['bkg_sub']
 #Add flag
 addflag = args['add_flag']
 
-tmin *= ks
-tmax *= ks
-
 commruncovxspec1 =\
 'python ~/Documents/SEAWIND/code/Reduction/reduce_xmm.py -srcname ' +\
-str(srcname) + ' -obsids ' + str(obsidsel) + ' -refemin ' + str(Emin) +\
-' -refemax ' + str(Emax) + ' -mincts ' + str(mincts) + ' -minbcts ' +\
-str(minctsbkg) + ' -dtbinbkg ' + str(minctsbkg) 
+str(srcname) + ' -obsids ' + str(stringobsidsel) + ' -refemin ' + str(Emin) +\
+' -refemax ' + str(Emax)
 
 commruncovxspec2 =\
 'python ~/Documents/SEAWIND/code/Reduction/srcdet_xmm.py -srad ' +\
@@ -390,13 +390,13 @@ commruncovxspec3 =\
 str(srcrad) + ' -brad ' + str(bkgrad) + ' -mincts ' +\
 str(mincts) + ' -minbcts ' + str(minctsbkg) + ' -refemin ' +\
 str(Emin) + ' -refemax ' + str(Emax) + ' -texp ' +\
-str(tthresh) + ' -obsids ' + str(obsidsel)
+str(tthresh)
 
 commruncovxspec4 =\
 'python ~/Documents/SEAWIND/code/Reduction/reduce_xmm_lc.py -srcname ' +\
 str(srcname) + ' -dtbincov ' + str(bintimecov) + ' -dtbinqpo ' +\
 str(bintimeqpo) + ' -sthresh ' + str(sigthreshold) +\
-' -psearch ' + str(psearch) + ' rmflares ' + str(removeflares) +\
+' -psearch ' + str(psearch) + ' -rmflares ' + str(removeflares) +\
 ' -bsub ' + str(bkgsubepiclc) + ' -aflag ' + str(addflag) +\
 ' -refemin ' + str(Emin) + ' -refemax ' + str(Emax) +\
 ' -egrid ' + str(energyargs) + ' -srcrad ' + str(srcrad) + ' -texp ' +\
@@ -407,10 +407,12 @@ commruncovxspec5 =\
 str(plotlc) + ' -plags ' + str(plotlags) + ' -ppsd ' + str(plotpsd) +\
 ' -split ' + str(splitscheme) + ' -statpower ' +\
 str(statpow) + ' -normpower ' + str(normpsd) + ' -flgaps ' +\
-str(fillgaps) + ' -seglc ' + str(segmentlc) + ' -fmin ' +\
-str(freqmin) + ' -fmax ' + str(freqmax) + ' -gbin ' + str(gbinningargs) +\
-' -gscale ' + str(groupscale) + ' -rmcmc ' + str(rmcmcargs) +\
-' -gencov ' + str(gencov) + ' -psdmods ' + str(psdmods)
+str(fillgaps) + "," + str(fillmethod) + ' -seglc ' +\
+str(segmentlc) + ',' + str(int(tmin)) + "," + str(int(tmax)) +\
+' -fmin ' + str(freqmin) + ' -fmax ' + str(freqmax) +\
+' -gbin ' + str(gbinningargs) + ' -gscale ' + str(groupscale) +\
+' -rmcmc ' + str(rmcmcargs) + ' -gencov ' + str(gencov) +\
+' -psdmods ' + str(psdmods) + ' -srcname ' + str(srcname)
 
 stringcomms.append(commruncovxspec1)
 stringcomms.append(commruncovxspec2)
@@ -419,5 +421,6 @@ stringcomms.append(commruncovxspec4)
 stringcomms.append(commruncovxspec5)
 np.savetxt("XcovSpec.sh",stringcomms,fmt='%s',delimiter='  ')
 os.system("chmod u+x XcovSpec.sh")
-# os.system("./XcovSpec.sh")
+os.system("./XcovSpec.sh")
+os.system("rm -rf 0*")
 
