@@ -1,7 +1,8 @@
 Copyright 2026 Rajath Sathyaprakash 
-XcovSpec version 1.0 (relased August 2026) 
-Please add citation to GitHub repository after using this code.
 
+XcovSpec version 1.0 (relased August 2026) 
+
+Please add citation to GitHub repository after using this code.
 
 The uploaded set of python-based command line programs are intended to quickly and reliably decipher meaningful data trends from the XMM-Newton archive via the extraction of light-curves, power density spectra, images, time-delay profiles and covariance spectra. These five data measures are often used to characterise variability in many different classes of sources including accreting X-ray binaries, AGN, novae and galaxy clusters.  
 
