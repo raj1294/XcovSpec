@@ -12,7 +12,7 @@ The tool automatically downloads the required data files from the XMM-Newton arc
 
 The tool requires the following packages to be installed:
 
-python v3.12 (including numpy, scipy, scikit-learn, astropy, matplotlib, kmpfit and stingray), Scientific Analysis Software (SAS) and Chandra Interactive Analysis of Observations (CIAO>=v4.17). 
+python v3.12 (including numpy, scipy, scikit-learn, astropy, matplotlib, kmpfit and stingray), Scientific Analysis Software (SAS) and Chandra Interactive Analysis of Observations (CIAO>=v4.17) and SAO Image DS9. 
 
 Please install the python packages packages as follows:
 
