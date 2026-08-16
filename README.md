@@ -14,7 +14,7 @@ N.B: Users must have pre-installed anaconda, XMM-SAS from the following website:
 
 To run the code, simply run the following python file as follows from your terminal:
 
-python ~/Documents/SEAWIND/code/Communication/XcovSpec.py -srcname "Ark 564" -obsids 0861600101,0861600201 -refemin 0.3 -refemax 12.0 -mincts 100 -minbcts 100 -dtbinqpo 100 -dtbincov 100 -dtbinbkg 100 -srad 0.0083 -brad 0.0083 -srcdet 1e-16 -rmflares False -texp 5 -plc False -plags False -ppsd True -split False -statpower False -normpower frac -flgaps True,B -seglc True,0,500 -fmin 1e-4 -fmax 5e-4 -gbin 1.0,0.0 -gscale 1 -rmcmc False,1000 -gencov True -psdmods False -egrid minmax,0.3,10.0,16 -aflag True -psearch True -bsub True
+python XcovSpec.py -srcname "NGC 5204 X-1" -obsids 0405690501 -refemin 0.3 -refemax 12.0 -mincts 30 -minbcts 30 -dtbinqpo 0.07336496 -dtbincov 100 -dtbinbkg 100 -srad 0.0083 -brad 0.0083 -srcdet 1e-16 -rmflares False -texp 5 -plc True -plags True -ppsd True -split False -statpower False -normpower abs -flgaps True,B -seglc True,0,500 -fmin 1e-4 -fmax 5e-4 -gbin 1.0,0.0 -gscale 1 -rmcmc False,1000 -gencov True -psdmods False -egrid minmax,0.3,10.0,4 -aflag True -psearch False -bsub False
 
 More about the pipeline:
 
