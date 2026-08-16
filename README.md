@@ -10,21 +10,11 @@ With the extraction of light-curves the user can control the time bin size and t
 
 The tool automatically downloads the required data files from the XMM-Newton archive, based on the input source name. The source name needs to be a valid registry of the XMM-Newton observatory. When downloading the data, one can specify only the required Obs IDs in order to prevent the pipeline from downloading all the available datasets, which could potentially exceed the local hard-drive capacity. The tool runs a source detection algorithm in order to apply a spatial filter (mainly used to centroid the location of point-spread-function) to extract the required datasets by approximating the PSF with ELLBETA profiles. 
 
-The tool requires the following packages to be installed:
+To install :
 
-python v3.10 (including numpy, scipy, scikit-learn, astropy, matplotlib, kapteyn and stingray), Scientific Analysis Software (SAS) and Chandra Interactive Analysis of Observations (CIAO>=v4.17) and SAO Image DS9. 
+Simply run ./install.sh on your bash terminal.
 
-Please install the python packages packages as follows:
-
-python -m pip install scipy, astropy, scikit-learn, stingray….
-
-Please install CIAO in the following manner (see also https://cxc.cfa.harvard.edu/ciao/releasenotes/ciao_4.17_release.html):
-
-conda create -n ciao-4.17 python==3.10
-
-Please install SAS by consulting the following web-page: https://www.cosmos.esa.int/web/xmm-newton/sas-installation
-
-Once the required packages are installed and the appropriate environment variables are set: 
+Users must have pre-installed XMM-SAS from the following website: https://www.cosmos.esa.int/web/xmm-newton/sas-installation and the latest heasoft version including xspec (see https://heasarc.gsfc.nasa.gov/docs/software/lheasoft/download.html: maybe try conda install —name xcovspec heasoft, but try to install from source) compatible with the user’s system. Please note that this version of XcovSpec is designed to be compatible with {\textbf{Apple Darwin 24.4.0}}, although earlier versions will work provided python v3.10 can be installed. Please don’t remove any contents from the install.sh file, especially the PYTHONPATH directory.
 
 Simply run the following python file as follows:
 
