@@ -104,4 +104,5 @@ options:
   -bsub BKG_SUB, --bkg_sub BKG_SUB Use epiclccorr to subtract background?
 
   Upcoming: Tools to model lag-energy spectra, lag-frequency spectra, time-averaged spectra and light-curves etc.
-<img width="856" height="592" alt="gsn_069_lc" src="https://github.com/user-attachments/assets/c9d70dda-475a-4a0f-be09-3e223949f8ec" />
+
+  
