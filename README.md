@@ -12,7 +12,7 @@ The tool automatically downloads the required data files from the XMM-Newton arc
 
 The tool requires the following packages to be installed:
 
-python v3.12 (including numpy, scipy, scikit-learn, astropy, matplotlib, kapteyn and stingray), Scientific Analysis Software (SAS) and Chandra Interactive Analysis of Observations (CIAO>=v4.17) and SAO Image DS9. 
+python v3.10 (including numpy, scipy, scikit-learn, astropy, matplotlib, kapteyn and stingray), Scientific Analysis Software (SAS) and Chandra Interactive Analysis of Observations (CIAO>=v4.17) and SAO Image DS9. 
 
 Please install the python packages packages as follows:
 
@@ -20,7 +20,7 @@ python -m pip install scipy, astropy, scikit-learn, stingray….
 
 Please install CIAO in the following manner (see also https://cxc.cfa.harvard.edu/ciao/releasenotes/ciao_4.17_release.html):
 
-conda create -n ciao-4.17 python==3.12
+conda create -n ciao-4.17 python==3.10
 
 Please install SAS by consulting the following web-page: https://www.cosmos.esa.int/web/xmm-newton/sas-installation
 
