@@ -373,18 +373,18 @@ bkgsubepiclc = args['bkg_sub']
 addflag = args['add_flag']
 
 commruncovxspec1 =\
-'python ~/Documents/SEAWIND/code/Reduction/reduce_xmm.py -srcname ' +\
+'python reduce_xmm.py -srcname ' +\
 str(srcname) + ' -obsids ' + str(stringobsidsel) + ' -refemin ' + str(Emin) +\
 ' -refemax ' + str(Emax)
 
 commruncovxspec2 =\
-'python ~/Documents/SEAWIND/code/Reduction/srcdet_xmm.py -srad ' +\
+'python srcdet_xmm.py -srad ' +\
 str(srcrad) + ' -brad ' + str(bkgrad) + ' -refemin ' +\
 str(Emin) + ' -refemax ' + str(Emax) + ' -srcdet ' +\
 str(sigthreshold)
 
 commruncovxspec3 =\
-'python ~/Documents/SEAWIND/code/Reduction/extractspec_xmm.py ' +\
+'python extractspec_xmm.py ' +\
 ' -srcname ' + str(srcname) + ' -rmflares ' + str(removeflares) +\
 ' -dtbinbkg ' + str(bkgflarebintime) + ' -srad ' +\
 str(srcrad) + ' -brad ' + str(bkgrad) + ' -mincts ' +\
@@ -393,7 +393,7 @@ str(Emin) + ' -refemax ' + str(Emax) + ' -texp ' +\
 str(tthresh)
 
 commruncovxspec4 =\
-'python ~/Documents/SEAWIND/code/Reduction/reduce_xmm_lc.py -srcname ' +\
+'python reduce_xmm_lc.py -srcname ' +\
 str(srcname) + ' -dtbincov ' + str(bintimecov) + ' -dtbinqpo ' +\
 str(bintimeqpo) + ' -sthresh ' + str(sigthreshold) +\
 ' -psearch ' + str(psearch) + ' -rmflares ' + str(removeflares) +\
@@ -403,7 +403,7 @@ str(bintimeqpo) + ' -sthresh ' + str(sigthreshold) +\
 str(tthresh)
 
 commruncovxspec5 =\
-'python ~/Documents/SEAWIND/code/Timing/covariance.py -plc ' +\
+'python covariance.py -plc ' +\
 str(plotlc) + ' -plags ' + str(plotlags) + ' -ppsd ' + str(plotpsd) +\
 ' -split ' + str(splitscheme) + ' -statpower ' +\
 str(statpow) + ' -normpower ' + str(normpsd) + ' -flgaps ' +\
