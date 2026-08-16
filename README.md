@@ -12,7 +12,9 @@ The tool automatically downloads the required data files from the XMM-Newton arc
 
 To install :
 
-Simply run ./install.sh on your bash terminal.
+Simply run the following commands on your bash terminal: 
+chmod u+x install.sh
+./install.sh 
 
 Users must have pre-installed XMM-SAS from the following website: https://www.cosmos.esa.int/web/xmm-newton/sas-installation, the latest heasoft version compatible with the user’s system, including xspec (see https://heasarc.gsfc.nasa.gov/docs/software/lheasoft/download.html: maybe try conda install —name xcovspec heasoft, but try to install from source) and anaconda. Please note that this version of XcovSpec is designed to be compatible with Apple Darwin 24.4.0, although earlier versions will work provided python v3.10 can be installed. Please don’t remove any contents from the install.sh file, especially the PYTHONPATH directory.
 
