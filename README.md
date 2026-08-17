@@ -90,3 +90,5 @@ options:
   -bsub BKG_SUB, --bkg_sub BKG_SUB Use epiclccorr to subtract background?
 
   Upcoming: Tools to model lag-energy spectra and lag-frequency spectra using SPH simulations
+
+  To uninstall the package, simply run: conda remove -n xcovspec --all, followed by conda clean -tp
