@@ -1653,7 +1653,7 @@ storagedir = "lags"
 loc = os.getcwd()
 os.chdir(loc + "/" + storagedir + "/")
 
-keyobsid = "epn*net*obs*0*_1_*en4*comp*.lc"
+keyobsid = "epn*net*obs*0*_1_*en3*comp*.lc"
 obsidnum = []
 for fobsid in sorted(glob.glob(keyobsid)):
     obsid = fobsid.split(".lc")[0].split("_")[2].split("obs")[1]
@@ -1683,7 +1683,7 @@ for kn in range(len(obsidnum)):
         Nenergies += 1  
                     
     keyobs1 = "epn_net_obs*"
-    keyobs2 = "*_1_*en4*ref.lc"
+    keyobs2 = "*_1_*en3*ref.lc"
             
     for tempreflcfile in sorted(glob.glob(keyobs1+str(obsidnum[kn])+keyobs2)):
                                                                 
