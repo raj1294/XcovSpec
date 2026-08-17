@@ -91,4 +91,3 @@ options:
 
   Upcoming: Tools to model lag-energy spectra and lag-frequency spectra using SPH simulations
 
-  To uninstall the package, simply run: conda remove -n xcovspec --all, followed by conda clean -tp
