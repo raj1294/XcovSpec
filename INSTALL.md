@@ -1,8 +1,3 @@
-To download: 
-
-Clone repository from github using:
-git clone https://github.com/raj1294/XcovSpec
-
 To install :
 
 cd to the XcovSpec directory and simply run the following commands on your bash terminal: 
