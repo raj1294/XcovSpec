@@ -14,7 +14,7 @@ N.B: Users must have pre-installed anaconda, XMM-SAS (https://www.cosmos.esa.int
 Please note that this version of XcovSpec is designed to be compatible with Apple Darwin 24.4.0, although earlier or later versions will work provided python v3.10 can be installed. Please don’t remove any contents from the install.sh file.
 
 Set the following PYTHONPATH before running the code
-PYTHONPATH=/opt/homebrew/lib/python3.10/site-packages:${PYTHONPATH}
+PYTHONPATH=/Users/raj1294/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}
 
 To run the code: Simply run the following python file as follows from your terminal
 
