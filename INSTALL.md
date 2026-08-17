@@ -1,6 +1,6 @@
 To install :
 
-cd to the XcovSpec directory and simply run the following commands on your bash terminal: 
+Simply run the following commands on your bash terminal: 
 chmod u+x install.sh
 ./install.sh 
 
