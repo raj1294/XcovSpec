@@ -5,6 +5,8 @@ import argparse
 from astropy.coordinates import SkyCoord
 from astroquery.heasarc import Heasarc
 
+os.system("PYTHONPATH=/Users/raj1294/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}")
+
 ks = 1000
 loc = os.getcwd() + "/"
 
