@@ -11,3 +11,4 @@ export CFLAGS="-Wno-error=int-conversion"
 python setup.py install
 cd ~/software/XcovSpec/
 python -m pip install numpy==2.0.0
+PYTHONPATH=/Users/raj1294/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}
