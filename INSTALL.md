@@ -5,7 +5,7 @@ git clone https://github.com/raj1294/XcovSpec
 
 To install :
 
-Simply run the following commands on your bash terminal: 
+cd to the XcovSpec directory and simply run the following commands on your bash terminal: 
 chmod u+x install.sh
 ./install.sh 
 
