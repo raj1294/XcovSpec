@@ -4,23 +4,6 @@ XcovSpec version 1.0 (relased August 2026)
 
 Please add citation to GitHub repository after using this code.
 
-To install :
-
-Simply run the following commands on your bash terminal: 
-chmod u+x install.sh
-./install.sh 
-
-N.B: Users must have pre-installed anaconda, XMM-SAS from the following website: https://www.cosmos.esa.int/web/xmm-newton/sas-installation and the latest heasoft version compatible with the user’s system, including xspec (see https://heasarc.gsfc.nasa.gov/docs/software/lheasoft/download.html: maybe try conda install —name xcovspec heasoft, but try to install from source). The developer does not take responsibility for these packages. Please note that this version of XcovSpec is designed to be compatible with Apple Darwin 24.4.0, although earlier versions will work provided python v3.10 can be installed. Please don’t remove any contents from the install.sh file, especially the PYTHONPATH directory.
-
-Set the following PYTHONPATH before running the code
-PYTHONPATH=/opt/homebrew/lib/python3.10/site-packages:${PYTHONPATH}
-
-To run the code, simply run the following python file as follows from your terminal:
-
-python XcovSpec.py -srcname "NGC 5204 X-1" -obsids 0405690501 -refemin 0.3 -refemax 12.0 -mincts 30 -minbcts 30 -dtbinqpo 0.07336496 -dtbincov 100 -dtbinbkg 100 -srad 0.0083 -brad 0.0083 -srcdet 1e-16 -rmflares False -texp 5 -plc True -plags True -ppsd True -split False -statpower False -normpower abs -flgaps True,B -seglc True,0,500 -fmin 1e-4 -fmax 5e-4 -gbin 1.0,0.0 -gscale 1 -rmcmc False,1000 -gencov True -psdmods False -egrid minmax,0.3,10.0,4 -aflag True -psearch False -bsub False
-
-More about the pipeline:
-
 The uploaded set of python-based command line programs are intended to quickly and reliably decipher meaningful data trends from the XMM-Newton archive via the extraction of light-curves, power density spectra, images, time-delay profiles and covariance spectra. These five data measures are often used to characterise variability in many different classes of sources including accreting X-ray binaries, AGN, novae and galaxy clusters.  
 
 With the extraction of light-curves the user can control the time bin size and the energy grid either via the ‘array’ approach, in which case the energy grid is written explicitly separated by commas, or via the ‘minmax’ approach, in which case the user only need specify the minimum and maximum energy bin and the number of energy bins in logarithmic space. The scripts also enable the extraction of power-density spectra (PDS) with geometric binning enabled and tunable normalisation options (absolute-rms normalisation, fractional rms-squared normalisation or leahy normalisation), options to discard background flares from light-curves using the approach described in the XMM-Newton SAS tutorial threads, and the computation of lag-energy spectra, lag-frequency spectra, time-averaged spectra and covariance spectra, with the user able to pre-filter the light-curve over a narrow frequency band, interpolate across gaps due to bad-time intervals via the Timmer-Koenig approach or via bootstrapped light-curves. When computing lag-energy profiles between light-curves of two different energy bands for a real dataset, the user can choose to run MCMC simulations (simply a boolean switch) to assess the significance of the lags. Indeed, the user can control whether or not to remove flagged pixels when extracting filtered event files or time-averaged spectra. 
@@ -33,13 +16,13 @@ usage: XcovSpec.py [-h] -srcname SOURCENAME -plc PLOTLC -plags PLOTLAGS -ppsd PL
                    REFERENCE_ENERGY_MIN -refemax REFERENCE_ENERGY_MAX -flgaps FILLGAPS -seglc SEGMENTLC -fmin FREQMIN -fmax FREQMAX -gbin GEOMBIN
                    -gscale GROUPSCALE -rmcmc RUNMCMC -psdmods POWSPECMOD -egrid ENERGY_GRID -gencov COVSPEC -mincts MINIMUM_CTS -minbcts MINIMUM_CTS_BKG
                    -srad SRCRAD -brad BKGRAD -rmflares REMOVE_BKG_FLARES -srcdet SIGTHRESH -dtbinbkg BKG_BIN_TIME -dtbincov BINNING_TIME_COV -aflag
-                   ADD_FLAG -obsids OBSERVATION_IDS [-texp THRESHOLD_EXP_TIME] -dtbinqpo BINNING_TIME_QPO -psearch PULSE_SEARCH -bsub BKG_SUB
+                   ADD_FLAG -obsids OBSERVATION_IDS -texp THRESHOLD_EXP_TIME -dtbinqpo BINNING_TIME_QPO -psearch PULSE_SEARCH -bsub BKG_SUB
 
 Generate covariance spectra, lag-energy spectra plot power-spectral densities and plot light-curves
 
 options:
 
-  -h, --help            show this help message and exit
+  -h, --help show this help message and exit
   
   -srcname SOURCENAME, --sourcename SOURCENAME Target Name
   
@@ -107,5 +90,3 @@ options:
   -bsub BKG_SUB, --bkg_sub BKG_SUB Use epiclccorr to subtract background?
 
   Upcoming: Tools to model lag-energy spectra, lag-frequency spectra, time-averaged spectra and light-curves etc.
-
-  
