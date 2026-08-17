@@ -1,6 +1,6 @@
 To download: 
 
-Clone repository from github
+Clone repository from github using:
 git clone https://github.com/raj1294/XcovSpec
 
 To install :
