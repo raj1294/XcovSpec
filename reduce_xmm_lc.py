@@ -579,8 +579,8 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                         " ../../" + pulsations_dir + newfiltlcrefst)
                         stringpulse.append("mv " + filtlcbkgrefst +\
                         " ../../" + pulsations_dir + filtlcbkgrefst)
-                        stringpulse.append("mv " + filtevrefst +\
-                        " ../../" + pulsations_dir + newfiltevrefst)
+                        # stringpulse.append("mv " + filtevrefst +\
+                        # " ../../" + pulsations_dir + newfiltevrefst)
 
                 #Filtered comparison-band lightcurve
                 srclc_comp = "epn_src_obs" + ObsId + "_" +\
@@ -662,16 +662,16 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 if(bkgsubepiclc=="False"):
 
                     stringcov.append("mv " + filtlcref +\
-                                  " ../../" + storagedir + " " + newlcref)
+                                  " ../../" + storagedir + newlcref)
                                   
                     stringcov.append("mv " + srclc_comp +\
-                                  " ../../" + storagedir + " " + newlc_comp)
+                                  " ../../" + storagedir + newlc_comp)
                                   
                     stringcov.append("mv " + filtlcbkg +\
-                                  " ../../" + storagedir + " " + newlcbkgref)
+                                  " ../../" + storagedir + newlcbkgref)
                                   
                     stringcov.append("mv " + filtlcbkg_comp +\
-                                  " ../../" + storagedir + " " + newlcbkgcomp)
+                                  " ../../" + storagedir + newlcbkgcomp)
                                   
                 
                 #Background reference-band and comparison-band LCs  
