@@ -905,7 +905,7 @@ def covariance_spectrum_stingray(evfile,\
 
     return covspecE,covspecspt,covspecspterr
 
-#Estimate time lag in Fourier domain (Uttley et al. 2014)
+#Estimate time lag and covariance spectrum in Fourier domain (Uttley et al. 2014)
 def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,refbkg,ywindow,\
                   Mseg,bfactor,dt,stat):
     
