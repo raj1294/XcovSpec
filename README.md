@@ -96,4 +96,8 @@ The following figures show the XMM-Newton light-curve, power spectral density, l
 <img width="844" height="619" alt="PSD_example" src="https://github.com/user-attachments/assets/c52227fd-dea3-41f8-83aa-cae57f5ef0aa" />
 <img width="986" height="626" alt="lag_freqspec_example" src="https://github.com/user-attachments/assets/e851ae04-418d-497a-ae03-d6beed140322" />
 
+Analysis from fake data:
+
+<img width="1270" height="697" alt="code_output" src="https://github.com/user-attachments/assets/394da954-d638-497c-a8b0-e1d77f7c9423" />
+
 Upcoming: Tools to model lag-energy spectra and lag-frequency spectra using SPH simulations.
