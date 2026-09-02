@@ -89,5 +89,11 @@ options:
                         
   -bsub BKG_SUB, --bkg_sub BKG_SUB Use epiclccorr to subtract background?
 
-  Upcoming: Tools to model lag-energy spectra and lag-frequency spectra using SPH simulations
+The following figures show the XMM-Newton light-curve, power spectral density, lag-frequency spectrum and lag-energy spectrum for Ark 564 extracted using this software:
 
+<img width="1075" height="666" alt="lag_energy_spec_example" src="https://github.com/user-attachments/assets/b182fd8f-2592-4e7a-97ee-7dc9b3632763" />
+<img width="844" height="591" alt="lc_example" src="https://github.com/user-attachments/assets/9475531b-8108-4b93-98a6-0d6e4814ece6" />
+<img width="844" height="619" alt="PSD_example" src="https://github.com/user-attachments/assets/c52227fd-dea3-41f8-83aa-cae57f5ef0aa" />
+<img width="986" height="626" alt="lag_freqspec_example" src="https://github.com/user-attachments/assets/e851ae04-418d-497a-ae03-d6beed140322" />
+
+Upcoming: Tools to model lag-energy spectra and lag-frequency spectra using SPH simulations.
