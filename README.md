@@ -95,7 +95,7 @@ The following figures show the XMM-Newton light-curve, power spectral density, l
 <img width="844" height="591" alt="lc_example" src="https://github.com/user-attachments/assets/9475531b-8108-4b93-98a6-0d6e4814ece6" />
 <img width="844" height="619" alt="PSD_example" src="https://github.com/user-attachments/assets/c52227fd-dea3-41f8-83aa-cae57f5ef0aa" />
 <img width="939" height="572" alt="lag_freq_spec_Ark_564" src="https://github.com/user-attachments/assets/ff57849b-58de-4155-8f87-a6f9f31adbc7" />
-
+<img width="841" height="626" alt="lag_freq_model" src="https://github.com/user-attachments/assets/071dd701-d588-4bbe-be7e-cdfd4316b523" />
 
 Analysis from fake data:
 
