@@ -1,25 +1,33 @@
+import warnings, os, glob
+import argparse
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 from kapteyn import kmpfit
-from sklearn.gaussian_process.kernels import RBF, WhiteKernel
-from sklearn.gaussian_process import GaussianProcessRegressor
 from stingray import Lightcurve, AveragedPowerspectrum, AveragedCrossspectrum
-import warnings, os, glob
-from scipy import stats, fft, integrate, special
-from astropy.io import fits
 from stingray.varenergyspectrum import CovarianceSpectrum
 from stingray import EventList
-import argparse
+from sklearn.gaussian_process.kernels import RBF, WhiteKernel
+from sklearn.gaussian_process import GaussianProcessRegressor
+from scipy import stats, fft, integrate, special, signal
+from astropy.io import fits
 
+# Set global font preferences for publication style
+plt.rcParams.update({"font.family": "serif",\
+                     "axes.labelsize": 14,\
+                     "axes.titlesize": 14,\
+                     "xtick.labelsize": 14,\
+                     "ytick.labelsize": 14,\
+                     "figure.dpi": 100})
+
+#Ignore warnings
 warnings.filterwarnings('ignore')
 
 ks = 1000
-day = 86400
+day = 24*60*60
 
-#Argparse functions
 ##############################################################################
 
+#Argparse functions
 def arguments():
 
     def str_to_str(value):
@@ -161,13 +169,15 @@ def arguments():
     required=True,type=float_to_str)
         
     parser.add_argument('-gscale','--groupscale',default=1,\
-    help='Scaling factor to group Covariance spectrum [Enter an integer value]',\
+    help=\
+    'Scaling factor to group Covariance spectrum [Enter an integer value]',\
     required=True,type=int)
 
     parser.add_argument('-rmcmc','--runmcmc',\
     help='Run MCMC? [Enter 2 values separated by comma of type: '+\
-    'Boolean(Enter either True or False), Int(Enter number of MCMC simulations)',\
-    required=True,type=bool_to_str_mcmc,default=True)
+    'Boolean(Enter either True or False),' +\
+    ' Int(Enter number of MCMC simulations)',\
+    required=True,type=bool_to_str_mcmc,default=True) 
 
     parser.add_argument('-gencov','--covspec',\
     help="Generate Covariance Spectrum? [Enter either True or False]",\
@@ -180,12 +190,6 @@ def arguments():
     ags = vars(parser.parse_args())
     
     return ags
-
-##############################################################################
-
-#Covariance functions
-
-##############################################################################
 
 # Compute Fractional Variability
 def Fracvar(rate,error):
@@ -211,7 +215,7 @@ def Fracvar(rate,error):
     
     return Fvar, dFvar
 
-# Window function based on GTIs (Time-Domain)
+# Define window function based on GTIs (Time-Domain)
 def rect_window(rate_arr,tS,tE):
     
     twref,rwref = rate_arr        
@@ -233,44 +237,172 @@ def rect_window(rate_arr,tS,tE):
 
     return ywin
 
-# Analytical function to model averaged PSD
+# Define analytical function(s) to model averaged PSD
 def besselmod(pars, xdata):
     
-    amplitude,alpha,ampbes,norder = pars
-    
-    xdata =\
-    np.linspace(np.min(xdata),np.max(xdata),len(xdata))/(np.min(xdata))
+    amplitude,alpha,ampbes,norder = pars    
     ybessel = ampbes*(special.jv(int(norder),xdata))
+        
     ymod = ybessel + amplitude - alpha*xdata 
 
     return ymod
 
-# Residuals
+# Residuals: PSD models
 def resid_besselmod(pars, data):
     
     xdata, ydata, ydataerr = data
     amplitude,alpha,ampbes,norder = pars
 
-    xdata =\
-    np.linspace(np.min(xdata),np.max(xdata),len(xdata))/(np.min(xdata))
     resid = (ydata - besselmod(pars,xdata))/ydataerr
     
     return resid 
 
-# Timmer & Koenig (1995) method to generate fake LC
-def drawsampbes(freqs,ampfit,expntfit,ampbesfit,norderfit):
+#Lag significance levels from MCMC
+def mcmc_det_sig(bin_time_mcmc,tdur,nsegmts,geom_rebin,freqmin,freqmax,\
+                 A1,ind1,Abes1,norbes1,A2,ind2,Abes2,norbes2,\
+                 murate1,murate2,plts,sts,method):
+        
+    #Draw randomly from best-fit PSD and inverse FFT to generate LC
+    omegamin = 1./tdur
+    omegamax = 0.5*(bin_time_mcmc**-1)
+    domega = omegamin
+    omega = np.arange(omegamin,omegamax+domega,domega)
     
-    ybesselfit = ampbesfit*(special.jv(norderfit,freqs))
-    psdomega = ybesselfit + ampfit - expntfit*freqs
+    complexfft1pos = np.zeros(int(len(omega))).astype(complex)
+    complexfft1neg = np.zeros(int(len(omega))).astype(complex)
+    complexfft2pos = np.zeros(int(len(omega))).astype(complex)
+    complexfft2neg = np.zeros(int(len(omega))).astype(complex)
     
-    r1 = np.random.normal(0.0,scale=np.sqrt(abs(0.5*psdomega)))
-    r2 = np.random.normal(0.0,scale=np.sqrt(abs(0.5*psdomega)))
-    compnumpos = complex(r1,r2)
-    compnumneg = np.conj(compnumpos)
-    
-    return compnumpos,compnumneg
+    for irand in range(len(omega)):
+        
+        omegalog = np.log10(omega[irand])
+        
+        compnumber_pos1,compnumber_neg1 =\
+        drawsampbes(omegalog,A1,ind1,Abes1,norbes1)
+        compnumber_pos2,compnumber_neg2 =\
+        drawsampbes(omegalog,A2,ind2,Abes2,norbes2)
+                        
+        complexfft1pos[irand] = compnumber_pos1
+        complexfft1neg[irand] = compnumber_neg1
+        complexfft2pos[irand] = compnumber_pos2
+        complexfft2neg[irand] = compnumber_neg2
 
-# Timmer & Koenig (1995) method to generate fake LC
+        if(irand==int(len(omega))-1):
+            complexfft1neg[irand] = np.real(complexfft1neg[irand])
+            complexfft2neg[irand] = np.real(complexfft2neg[irand])
+        
+    complexfft1neg = np.flip(complexfft1neg)
+    complexfft1pos = np.insert(complexfft1pos,0,complex(2*murate1))
+    complexfft1 = np.hstack((complexfft1pos,complexfft1neg))
+    complexfft2neg = np.flip(complexfft2neg)
+    complexfft2pos = np.insert(complexfft2pos,0,complex(2*murate2))
+    complexfft2 = np.hstack((complexfft2pos,complexfft2neg))
+                
+    #Artificial LCs generated from PSDs (Timmer & Köenig 1995)
+    counts1 = np.fft.ifft(complexfft1)
+    counts1 = np.real(counts1)    
+    counts2 = np.fft.ifft(complexfft2)
+    counts2 = np.real(counts2)
+    
+    error1 =\
+    np.sqrt(np.random.poisson(np.int64(abs(counts1)*bin_time_mcmc)))/\
+    bin_time_mcmc
+    error2 =\
+    np.sqrt(np.random.poisson(np.int64(abs(counts2)*bin_time_mcmc)))/\
+    bin_time_mcmc
+    times = np.arange(0,bin_time_mcmc*len(counts1),bin_time_mcmc)
+    
+    #Ensure positive values for counts while retaining the shape
+    ct1_min = abs(np.min(counts1))
+    ct1_max = abs(np.min(counts2))
+    counts1 = (counts1 + ct1_min)*bin_time_mcmc
+    counts2 = (counts2 + ct1_max)*bin_time_mcmc
+    error1 = error1*bin_time_mcmc
+    error2 = error2*bin_time_mcmc
+        
+    if(plts=="True"):
+        
+        plt.errorbar(times,counts1,yerr=error1,fmt='k-')
+        plt.errorbar(times,counts2,yerr=error2,fmt='r-')
+        plt.show()
+    
+    #Fake lags
+    if(method=="timelags"):
+        
+        freq_fake,dfreq_fake,phaselag_fake,\
+        phaselag_efake,coh_fake,cohe_fake =\
+        time_lag_func(counts1,error1,counts2,error2,\
+                      np.zeros(len(counts1)),np.zeros(len(counts2)),\
+                      np.zeros(len(counts1)),np.zeros(len(counts2)),\
+                      np.ones(len(counts1)),nsegmts,geom_rebin,\
+                      bin_time_mcmc,sts)
+        phaselag_fake = phaselag_fake[freq_fake>=freqmin]
+        freq_fake = freq_fake[freq_fake>=freqmin]
+        phaselag_fake = phaselag_fake[freq_fake<=freqmax]
+        freq_fake = freq_fake[freq_fake<=freqmax]
+        lg_fake = phaselag_fake/(2.0*np.pi*freq_fake)
+    
+    #Fake lags (stingray)
+    if(method=="stingray"):
+        
+        lcref_sim = Lightcurve(times,counts=counts1,err=error1,\
+                               dt=bin_time_mcmc)
+        lccomp_sim = Lightcurve(times,counts=counts2,err=error2,\
+                                dt=bin_time_mcmc)
+        evref_sim = EventList.from_lc(lcref_sim)
+        evcomp_sim = EventList.from_lc(lccomp_sim)
+                
+        tsegsize = tdur/nsegmts
+        CSAsim = AveragedCrossspectrum.from_events(evref_sim,evcomp_sim,\
+                 segment_size=tsegsize,norm="frac",use_common_mean=True,\
+                 dt=bin_time_mcmc,silent=True)
+        CSAsim = CSAsim.rebin_log(geom_rebin)
+        
+        freq_fake = CSAsim.freq
+        lag_fake, lag_e_fake = CSAsim.time_lag()
+        lag_fake = lag_fake[freq_fake>=freqmin]
+        freq_fake = freq_fake[freq_fake>=freqmin]
+        lag_fake = lag_fake[freq_fake<=freqmax]
+        freq_fake = freq_fake[freq_fake<=freqmax]
+        lg_fake = np.mean(lag_fake)
+    
+    return lg_fake
+
+#Functions to model lag-frequency spectra
+def reverb_mod(p,x):
+    
+    """
+    Computes the phase lag (in seconds) from a two-component model 
+    consisting of a direct component and a reprocessed component 
+    governed by a gamma-distributed transfer function.
+    """
+    
+    R,timemin,tau,sigd = p
+    
+    jnum = complex(0,1)
+    Nphase = tau + sigd    
+    
+    phase_arg_reverb = (R/Nphase)*(np.exp(-jnum*2*np.pi*x*timemin))/\
+    (1-np.exp(-jnum*2*np.pi*x*tau))/(jnum*2*np.pi*x)
+    phase_arg_pl = (R/Nphase)*(np.exp(-jnum*2*np.pi*x*(tau+timemin)))/\
+    (1./sigd + jnum*2*np.pi*x)
+    phase_arg = phase_arg_reverb + phase_arg_pl  
+    phase_lag_mod = np.arctan((np.imag(phase_arg))/(1+np.real(phase_arg)))
+    
+    time_lag_mod = phase_lag_mod/(2*np.pi*x)
+    
+    return time_lag_mod
+
+#Residuals: lag-frequency spectra
+def residuals_reverb_mod(p,data):
+        
+    R,timemin,tau,sigd = p
+    freq,lag,lagerr = data
+    resid = (lag - reverb_mod(p,freq))/lagerr
+    
+    return resid 
+
+#Draw PSD samples with Gaussian processes
 def drawsampgp(psdomegamod):
     
     r1 = np.random.normal(0.0,scale=np.sqrt(abs(0.5*psdomegamod)))
@@ -280,7 +412,7 @@ def drawsampgp(psdomegamod):
     
     return compnumpos,compnumneg
 
-# Estimation of random noise contribution to lag energy spectrum
+# Generate fake LC: Gap filling
 def genlc(bin_time_mcmc,tdur,freqmin,freqmax,psdomegamod,murate):
                  
     Nomega = len(psdomegamod)
@@ -311,6 +443,20 @@ def genlc(bin_time_mcmc,tdur,freqmin,freqmax,psdomegamod,murate):
         counts -= abs(np.min(counts))
             
     return times, counts, error
+
+# Generate fake LC using PL + Bessel functions: Timmer & Koenig (1995)
+def drawsampbes(logfreqs,ampfit,expntfit,ampbesfit,norderfit):
+    
+    ybesselfit = ampbesfit*(special.jv(norderfit,logfreqs))
+    psdomegalog = ybesselfit + ampfit - expntfit*logfreqs
+    psdomega = 10**psdomegalog
+        
+    r1 = np.random.normal(0.0,scale=np.sqrt(abs(0.5*psdomega)))
+    r2 = np.random.normal(0.0,scale=np.sqrt(abs(0.5*psdomega)))
+    compnumpos = complex(r1,r2)
+    compnumneg = np.conj(compnumpos)
+    
+    return compnumpos,compnumneg
 
 #Model PSD with Gaussian Processes
 def psdmodgp(tlcpsd,lcpsd,lcerrpsd,reflcpsd,reflcerrpsd,lcbkgpsd,refbkgpsd,\
@@ -413,6 +559,10 @@ def psdmodgp(tlcpsd,lcpsd,lcerrpsd,reflcpsd,reflcerrpsd,lcbkgpsd,refbkgpsd,\
             Crossxypsd = normcrosspsd*Ynconjpsd*Xnpsd
             dCrossxypsd =\
             normcrosspsd*(Ynconjerrpsd*Xnpsd + Ynconjpsd*Xnerrpsd)
+            
+            print(dPsdxpsd)
+            print(dPsdypsd)
+            print(dCrossxypsd)
                                         
             # Append CPSD and PSDs for each segment to 
             # pass to functions for averaging and binning
@@ -494,6 +644,8 @@ def psdmodgp(tlcpsd,lcpsd,lcerrpsd,reflcpsd,reflcerrpsd,lcbkgpsd,refbkgpsd,\
         
         scorecomp = gp.score(lgfreqcompre,lgavgPypsd)
         paramscomp = gp.kernel_
+        print(scorecomp)
+        print(paramscomp)
         
         # Best-fit prediction
         Npsfmod = int(0.5*len(tlcpsd))
@@ -509,7 +661,7 @@ def psdmodgp(tlcpsd,lcpsd,lcerrpsd,reflcpsd,reflcerrpsd,lcbkgpsd,refbkgpsd,\
     return lgfreqypsd,lgavgPypsd,lgavgPyerrpsd,lgfreqypsdmod,lgypsdmod,\
            mulcpsd
            
-#Estimation of random noise contribution to lag-energy spectrum
+#Compute random noise contribution to lag-energy spectrum: significance
 def mcmc_det(bin_time_mcmc,tdur,nsegmts,geom_rebin,freqmin,freqmax,\
              A1,ind1,Abes1,norbes1,A2,ind2,Abes2,norbes2,\
              murate1,murate2,plts,sts,method):
@@ -574,7 +726,7 @@ def mcmc_det(bin_time_mcmc,tdur,nsegmts,geom_rebin,freqmin,freqmax,\
         
         plt.errorbar(times,counts1,yerr=error1,fmt='k-')
         plt.errorbar(times,counts2,yerr=error2,fmt='r-')
-        plt.show()
+        # plt.show()
     
     #Fake lags
     if(method=="timelags"):
@@ -582,6 +734,7 @@ def mcmc_det(bin_time_mcmc,tdur,nsegmts,geom_rebin,freqmin,freqmax,\
         freq_fake,dfreq_fake,phaselag_fake,\
         phaselag_efake,coh_fake,cohe_fake =\
         time_lag_func(counts1,error1,counts2,error2,\
+                      np.zeros(len(counts1)),np.zeros(len(counts2)),\
                       np.zeros(len(counts1)),np.zeros(len(counts2)),\
                       np.ones(len(counts1)),nsegmts,geom_rebin,\
                       bin_time_mcmc,sts)
@@ -698,68 +851,15 @@ def ignore_btis(arrays,tS,tE):
         
     for pind in range(len(newarrays_list)):    
         newarrays_list[pind] = np.array(newarrays_list[pind])
-    # newarrays_list = np.array(newarrays_list)
+    newarrays_list = np.array(newarrays_list)
 
     for pind2 in range(len(oldarrays_list)):
         oldarrays_list[pind2] = np.array(oldarrays_list[pind2])
-    # oldarrays_list = np.array(oldarrays_list)
+    oldarrays_list = np.array(oldarrays_list)
         
     return oldarrays_list, newarrays_list
     
-#Estimate covariance spectrum in time domain (Wilkinson and Uttley 2009)
-def covariance_time_domain(lc,lcerr,reflc,reflcerr,Msegs):
-        
-    sigcov,sigxs_x,sigxs_y,sigerr_x,sigerr_y = [[],[],[],[],[]]
-    Numpt = 0
-    for arr in range(Msegs):
-        
-        #Split LC into M equal segments
-        divs = int(len(reflc)/Msegs) 
-        lctemp = lc[arr*divs:(arr+1)*divs]
-        lctemperr = lcerr[arr*divs:(arr+1)*divs]
-        reflctemp = reflc[arr*divs:(arr+1)*divs]
-        reflctemperr = reflcerr[arr*divs:(arr+1)*divs]
-        
-        Numpt = len(lctemp)
-        mutemp = np.mean(lctemp)
-        mureftemp = np.mean(reflctemp)
-                
-        w1 = np.zeros(len(lctemp))
-        w2 = np.zeros(len(lctemp))
-        w3 = np.zeros(len(lctemp))
-        w4 = np.zeros(len(lctemp))
-        w5 = np.zeros(len(lctemp))
-
-        for jp in range(len(lctemp)):
-            w1[jp] = (lctemp[jp] - mutemp)*(reflctemp[jp] - mureftemp)
-            w2[jp] = lctemperr[jp]**2
-            w3[jp] = reflctemperr[jp]**2
-            w4[jp] = (lctemp[jp]-mutemp)*(lctemp[jp]-mutemp)
-            w5[jp] = (reflctemp[jp] - mureftemp)*(reflctemp[jp] - mureftemp)
-                
-        sigcov.append(np.mean(w1))
-        sigerr_x.append(np.mean(w2))
-        sigerr_y.append(np.mean(w3))
-        sigxs_x.append(np.mean(w4) - np.mean(w2))
-        sigxs_y.append(np.mean(w5) - np.mean(w3))
-                
-    mu_sigcov = np.mean(sigcov)
-    mu_sigxs_x = np.mean(sigxs_x)
-    mu_sigxs_y = np.mean(sigxs_y)
-    mu_sigerr_x = np.mean(sigerr_x)
-    mu_sigerr_y = np.mean(sigerr_y)
-                
-    mean_covariance = mu_sigcov/np.sqrt(mu_sigxs_y)
-    cov_error = np.sqrt((mu_sigxs_x*mu_sigerr_y + mu_sigxs_y*mu_sigerr_x +\
-    mu_sigerr_x*mu_sigerr_y)/(Msegs*Numpt*mu_sigxs_y))
-                    
-    if(np.isnan(mean_covariance)==True):
-        mean_covariance = 0
-        cov_error = 0
-                
-    return mean_covariance, cov_error
-
-#Function to average PSD and CPSD over M segments
+#Compute averaged PSD and CPSD by breaking original LC into M segments
 def Pbin(MsegPbin,freqsarr,Pxarr,Pyarr,Cxyarr):
         
     favg,Pxavg,dPxavg,Pyavg,dPyavg,Cxyavg,dCxyavg = [[],[],[],[],[],[],[]]
@@ -797,7 +897,7 @@ def Pbin(MsegPbin,freqsarr,Pxarr,Pyarr,Cxyarr):
     #Return averaged quantities
     return favg,Pxavg,dPxavg,Pyavg,dPyavg,Cxyavg,dCxyavg
 
-#Function to geometrically bin PSD and CPSD in frequency space
+#Geometrically bin PSD and CPSD in frequency space
 def fbin(bfact,farr,PXarr,PYarr,CXYarr,dPXarr,dPYarr,dCXYarr):
     
     avgf,avgPx,davgPx,avgPy,davgPy,avgCxy,davgCxy = [[],[],[],[],[],[],[]]
@@ -858,65 +958,12 @@ def fbin(bfact,farr,PXarr,PYarr,CXYarr,dPXarr,dPYarr,dCXYarr):
     #Return binned quantities
     return avgf,avgPx,avgPy,avgCxy,davgPx,davgPy,davgCxy,Karr
 
-#Covariance spectrum (stingray)
-def covariance_spectrum_stingray(evfile,\
-    bwidth,fbmin,fbmax,refemin,refemax,egrid,normalisation):
-                                 
-    eventsst_ref = EventList.read(evfile,"hea",\
-    additional_columns=["DET_ID"])
-    frq_interval = [fbmin,fbmax]
-    rf_band = [refemin,refemax]
-    telapse_ref = eventsst_ref.time[-1]-eventsst_ref.time[0] 
-    Msegstref = 0
-
-    if (telapse_ref > 100*ks):
-        Msegstref = 14
-
-    if (telapse_ref > 50*ks and telapse_ref <= 100*ks):
-        Msegstref = 10
-
-    if (telapse_ref > 25*ks and telapse_ref <= 50*ks):
-        Msegstref = 8
-
-    if (telapse_ref > 15*ks and telapse_ref <= 25*ks):
-        Msegstref = 3
-
-    if (telapse_ref <= 15*ks):
-        Msegstref = 1
-     
-    segsize_ref = telapse_ref/Msegstref    
-    covspec = CovarianceSpectrum(eventsst_ref,\
-              freq_interval=frq_interval,segment_size=segsize_ref,\
-              bin_time=bwidth,energy_spec=egrid,\
-              norm=normalisation,ref_band=rf_band)
-    
-    covspecE = covspec.energy
-    covspecspt = covspec.spectrum
-    covspecspterr = covspec.spectrum_error
-            
-    isnanarrcov = np.isnan(covspecspt)
-    covspecE = covspecE[isnanarrcov==False]
-    covspecspt = covspecspt[isnanarrcov==False]
-    covspecspterr = covspecspterr[isnanarrcov==False]
-    isnanarrcov = np.isnan(covspecspterr)
-    covspecE = covspecE[isnanarrcov==False]
-    covspecspt = covspecspt[isnanarrcov==False]
-    covspecspterr = covspecspterr[isnanarrcov==False]
-
-    return covspecE,covspecspt,covspecspterr
-
-#Estimate time lag and covariance spectrum in Fourier domain (Uttley et al. 2014)
-def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,refbkg,ywindow,\
-                  Mseg,bfactor,dt,stat):
+#Compute time lags in Fourier domain (Uttley et al. 2014)
+def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,lcbkgerr,refbkg,refbkgerr,
+                  window,Mseg,bfactor,Dt,stat):
     
     freqs,Px,Py,Cxy = [[],[],[],[]]
-    
-    # Compute noise level depending on whether the counting statistics
-    # are Poissonian or not 
-    fnyq = 0.5*(dt**-1)
-    Pnoise = 0
-    Prefnoise = 0
-    Msegnew = 0
+    fnyq,Pnoise,Prefnoise,Msegnew = 0.5*(Dt**-1),0,0,0
 
     # Average power spectrum and cross spectrum over M segments
     for k3t in range(Mseg):
@@ -928,9 +975,13 @@ def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,refbkg,ywindow,\
         reflctemp = reflc[k3t*div:(k3t+1)*div]
         reflctemperr = reflcerr[k3t*div:(k3t+1)*div]
         lcbkgtemp = lcbkg[k3t*div:(k3t+1)*div]
+        lcbkgtemperr = lcbkgerr[k3t*div:(k3t+1)*div]
         refbkgtemp = refbkg[k3t*div:(k3t+1)*div]
-        ywindowtemp = ywindow[k3t*div:(k3t+1)*div]
+        refbkgtemperr = refbkgerr[k3t*div:(k3t+1)*div]
+        windowtemp = window[k3t*div:(k3t+1)*div]
         
+        # Compute noise level depending on whether the counting statistics
+        # are Poissonian or not 
         if(stat=="Poissonian"):
             
             Pnoise += (2*(np.mean(lctemp) +\
@@ -946,32 +997,153 @@ def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,refbkg,ywindow,\
             Pnoise += errsq/(fnyq*(np.mean(lctemp))**2)
             Prefnoise += errrefsq/(fnyq*(np.mean(reflctemp))**2) 
                 
-        if(np.sum(lctemp)>-100):
+        if(np.sum(lctemp)>0):
             
-            # FFT of comparison-band LC
-            Xn = fft.fft(lctemp) 
-            fxn = fft.fftfreq(len(lctemp),d=dt)
-            
-            # FFT of reference-band LC
-            Yn = fft.fft(reflctemp) 
-            fyn = fft.fftfreq(len(reflctemp),d=dt)
-            
-            # FFT of window function
-            Wn = fft.fft(ywindowtemp)
-            fwn = fft.fftfreq(len(ywindowtemp),d=dt)
+            # #Zero pad data
+            # zeros = np.zeros(int(100))
+            # lctemp = np.hstack((zeros,lctemp))
+            # lctemp = np.hstack((lctemp,zeros))
+            # reflctemp = np.hstack((zeros,reflctemp))
+            # reflctemp = np.hstack((reflctemp,zeros))
+            # lctemperr = np.hstack((zeros,lctemperr))
+            # lctemperr = np.hstack((lctemperr,zeros))
+            # reflctemperr = np.hstack((zeros,reflctemperr))
+            # reflctemperr = np.hstack((reflctemperr,zeros))
+            # lcbkgtemp = np.hstack((zeros,lcbkgtemp))
+            # lcbkgtemp = np.hstack((lcbkgtemp,zeros))
+            # lcbkgtemperr = np.hstack((zeros,lcbkgtemperr))
+            # lcbkgtemperr = np.hstack((lcbkgtemperr,zeros))
+            # refbkgtemp = np.hstack((zeros,refbkgtemp))
+            # refbkgtemp = np.hstack((refbkgtemp,zeros))
+            # refbkgtemperr = np.hstack((zeros,refbkgtemperr))
+            # refbkgtemperr = np.hstack((refbkgtemperr,zeros))
+            # windowtemp = np.hstack((zeros,windowtemp))
+            # windowtemp = np.hstack((windowtemp,zeros))
                                     
+            #Compute FFTs and their errors
+            Xnup = np.fft.fft(lctemp+lctemperr,n=len(lctemp))
+            Xndown = np.fft.fft(lctemp-lctemperr,n=len(lctemp))
+            Ynup = np.fft.fft(reflctemp+reflctemperr,n=len(reflctemp))
+            Yndown = np.fft.fft(reflctemp-reflctemperr,n=len(reflctemp))
+            Xnbkgup = np.fft.fft(lcbkgtemp+lcbkgtemperr,n=len(lcbkgtemp))
+            Xnbkgdown =  np.fft.fft(lcbkgtemp-lcbkgtemperr,n=len(lcbkgtemp))
+            Ynbkgup = np.fft.fft(refbkgtemp+refbkgtemperr,n=len(refbkgtemp))
+            Ynbkgdown = np.fft.fft(refbkgtemp-refbkgtemperr,n=len(refbkgtemp))
+            Wn = np.fft.fft(windowtemp,n=len(windowtemp))
+            
+            Xn = 0.5*(Xnup+Xndown)
+            Xnerr = 0.5*(Xnup-Xndown)
+            Yn = 0.5*(Ynup+Yndown)
+            Ynerr = 0.5*(Ynup-Yndown)
+            Xnbkg = 0.5*(Xnbkgup+Xnbkgdown)
+            Xnbkgerr = 0.5*(Xnbkgup-Xnbkgdown)
+            Ynbkg = 0.5*(Ynbkgup+Ynbkgdown)
+            Ynbkgerr = 0.5*(Ynbkgup-Ynbkgdown)
+            Xnconj = np.conj(Xn)
+            Xnconjerr = np.conj(Xnerr)
+            Ynconj = np.conj(Yn)
+            Ynconjerr = np.conj(Ynerr)
+            Xnconjbkg = np.conj(Xnbkg)
+            Xnconjbkgerr = np.conj(Xnbkgerr)
+            Ynconjbkg = np.conj(Ynbkg)
+            Ynconjbkgerr = np.conj(Ynbkgerr)
+            Wnconj = np.conj(Wn)
+            fxn = np.fft.fftfreq(len(lctemp),d=Dt)
+
+            #Deconvolve FFT from window (remove beat periods)
+            Xnrem,Xnup = signal.deconvolve(Xnup,Wn)
+            Xnup += Xnrem
+            Xnrem,Xndown = signal.deconvolve(Xndown,Wn)
+            Xndown += Xnrem
+            Xnrembkg,Xnbkgup = signal.deconvolve(Xnbkgup,Wn)
+            Xnbkgup += Xnrembkg
+            Xnrembkg,Xnbkgdown = signal.deconvolve(Xnbkgdown,Wn)
+            Xnbkgdown += Xnrembkg
+            Ynrem,Ynup = signal.deconvolve(Ynup,Wn)
+            Ynup += Ynrem
+            Ynrem,Yndown = signal.deconvolve(Yndown,Wn)
+            Yndown += Ynrem
+            Ynrembkg,Ynbkgup = signal.deconvolve(Ynbkgup,Wn)
+            Ynbkgup += Ynrembkg
+            Ynrembkg,Ynbkgdown = signal.deconvolve(Ynbkgdown,Wn)
+            Ynbkgdown += Ynrembkg
+            Xnd = 0.5*(Xnup+Xndown)
+            Xnerrd = 0.5*(Xnup-Xndown)
+            Xnbkgd = 0.5*(Xnbkgup+Xnbkgdown)
+            Xnbkgerrd = 0.5*(Xnbkgup-Xnbkgdown)
+            Xnconjd = np.conj(Xnd)
+            Xnconjerrd = np.conj(Xnerrd)
+            Xnbkgconjd = np.conj(Xnbkgd)
+            Xnbkgconjerrd = np.conj(Xnbkgerrd)
+            Ynd = 0.5*(Ynup+Yndown)
+            Ynerrd = 0.5*(Ynup-Yndown)
+            Ynbkgd = 0.5*(Ynbkgup+Ynbkgdown)
+            Ynbkgerrd = 0.5*(Ynbkgup-Ynbkgdown)
+            Ynconjd = np.conj(Ynd)
+            Ynconjerrd = np.conj(Ynerrd)
+            Ynbkgconjd = np.conj(Ynbkgd)
+            Ynbkgconjerrd = np.conj(Ynbkgerrd)
+
+            #Cut at frequencies > 0
             Xn = Xn[fxn>0]
-            Yn = Yn[fyn>0]
-            Wn = Wn[fwn>0]
+            Xnerr = Xnerr[fxn>0]
+            Xnbkg = Xnbkg[fxn>0]
+            Xnbkgerr = Xnbkgerr[fxn>0]
+            Xnconj = Xnconj[fxn>0]
+            Xnconjerr = Xnconjerr[fxn>0]
+            Xnconjbkg = Xnconjbkg[fxn>0]
+            Xnconjbkgerr = Xnconjbkgerr[fxn>0]
+            
+            Xnd = Xnd[fxn>0]
+            Xnerrd = Xnerrd[fxn>0]
+            Xnconjd = Xnconjd[fxn>0]
+            Xnconjerrd = Xnconjerrd[fxn>0]
+            Xnbkgd = Xnbkgd[fxn>0]
+            Xnbkgerrd = Xnbkgerrd[fxn>0]
+            Xnbkgconjd = Xnbkgconjd[fxn>0]
+            Xnbkgconjerrd = Xnbkgconjerrd[fxn>0]
+            
+            Yn = Yn[fxn>0]
+            Ynerr = Ynerr[fxn>0]
+            Ynbkg = Ynbkg[fxn>0]
+            Ynbkgerr = Ynbkgerr[fxn>0]
+            Ynconj = Ynconj[fxn>0]
+            Ynconjerr = Ynconjerr[fxn>0]
+            Ynconjbkg = Ynconjbkg[fxn>0]
+            Ynconjbkgerr = Ynconjbkgerr[fxn>0]
+            
+            Ynd = Ynd[fxn>0]
+            Ynerrd = Ynerrd[fxn>0]
+            Ynbkgd = Ynbkgd[fxn>0]
+            Ynbkgerrd = Ynbkgerrd[fxn>0]
+            Ynconjd = Ynconjd[fxn>0]
+            Ynconjerrd = Ynconjerrd[fxn>0]
+            Ynbkgconjd = Ynbkgconjd[fxn>0]
+            Ynbkgconjerrd = Ynbkgconjerrd[fxn>0]
+        
+            Wn = Wn[fxn>0]
+            Wnconj = Wnconj[fxn>0]
             fxn = fxn[fxn>0]
-            fyn = fyn[fyn>0]
-            fwn = fwn[fwn>0]
-                                    
+                        
+            Xn = Xnd
+            Xnerr = Xnerrd
+            Xnbkg = Xnbkgd
+            Xnbkgerr = Xnbkgerrd
+            Xnconj = Xnconjd
+            Xnconjerr = Xnconjerrd
+            
+            Yn = Ynd
+            Ynerr = Ynerrd
+            Ynbkg = Ynbkgd
+            Ynbkgerr = Ynbkgerrd
+            Ynconj = Ynconjd
+            Ynconjerr = Ynconjerrd
+                                                
             # Compute PSD and CPSD with 
             # rms-squared normalisation for each segment
-            normpsdx = (2.0*dt)/((len(lctemp))*(np.mean(lctemp))**2)
-            normpsdy = (2.0*dt)/((len(reflctemp))*(np.mean(reflctemp))**2)
-            normcross = (2.0*dt)/((len(lctemp))*(np.mean(lctemp))*\
+            normpsdx = (2.0*Dt)/((len(lctemp))*(np.mean(lctemp))**2)
+            normpsdy = (2.0*Dt)/((len(reflctemp))*(np.mean(reflctemp))**2)
+            normcross = (2.0*Dt)/((len(lctemp))*(np.mean(lctemp))*\
                         (np.mean(reflctemp)))
                     
             Psdx = normpsdx*((np.conj(Xn))*(Xn))
@@ -1000,7 +1172,6 @@ def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,refbkg,ywindow,\
     #Average Pnoise and Prefnoise
     Pnoise /= Msegnew
     Prefnoise /= Msegnew
-                    
     Mseg = Msegnew
     freqs = np.array(freqs)
     Px = np.array(Px)
@@ -1022,7 +1193,6 @@ def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,refbkg,ywindow,\
     
     # Implement frequency dependent binning of averaged PSDs and CPSDs
     if(bfactor>1):
-                
         fb,avgPx,avgPy,avgCxy,avgPxerr,avgPyerr,avgCxyerr,Karr =\
         fbin(bfactor,favg,Pxavg,Pyavg,Cxyavg,dPxavg,dPyavg,dCxyavg)
     
@@ -1056,116 +1226,136 @@ def time_lag_func(lc,lcerr,reflc,reflcerr,lcbkg,refbkg,ywindow,\
     
     dnbias = ((avgPxerr**2)*(Prefnoise**2) +\
               (avgPyerr**2)*(Pnoise**2))/(nsamples**2)
-        
-    dCxyamp = 4*((avcxyreal**2)*(avcxyrealerr**2) +\
-                 (avcxyimag**2)*(avcxyimagerr**2)) + dnbias
-        
-    # Raw Coherence
-    coherence = Cxyamp/((avgPx)*(avgPy))
-        
-    # Statistical uncertainty on raw coherence
-    dcoherence = ((2.0/(nsamples))**(0.5))*(1 - coherence**2)/\
-                 (abs(coherence))
     
-    coherence = np.sqrt(coherence)
-    dcoherence = 0.5*(dcoherence)/(coherence)
-    intcoherence = Cxyamp/((avgPx-Pnoise)*(avgPy-Prefnoise)) #Intrinsic
+    dCxyamp = 4*((avcxyreal**2)*(avcxyrealerr**2) +\
+    (avcxyimag**2)*(avcxyimagerr**2)) + dnbias
+        
+    print(Cxyamp)
+    print(dCxyamp)
+    print("")
+        
+    # Raw coherence
+    coherence = Cxyamp/((avgPx)*(avgPy))
+    dcoherence = np.zeros(len(coherence))
+        
+    #Intrinsic coherence
+    intcoherence = Cxyamp/((avgPx-Pnoise)*(avgPy-Prefnoise)) 
         
     # Uncertainty in intrinsic coherence (from Vaughan and Nowak 1997)
-    intcoherr = np.zeros(len(intcoherence))
     arbfact = 3 
-            
-    for u in range(len(coherence)):
-                    
-        # High powers, high measured coherence         
-        cond1 = (arbfact*Pnoise)/(np.sqrt(nsamples[u]))
-        cond2 = (arbfact*Prefnoise)/(np.sqrt(nsamples[u]))
-        cond3 = (arbfact*nbias[u])/((avgPx[u])*(avgPy[u]))
+    intcoherr = np.zeros(len(intcoherence))
+    phaselag = np.zeros(len(avcxyimag))
+    dphaselag = np.zeros(len(avcxyreal))
+    
+    # Compute phase lag as a function of frequency between the two energy bands
+    for hp3 in range(len(avcxyimag)):
         
-        if((avgPx[u]-Pnoise)>cond1 and (avgPy[u]-Prefnoise)>cond2\
-            and coherence[u]>cond3):
-                            
-            intcoherr[u] = ((nsamples[u])**-0.5)*\
-                           (np.sqrt((2*nsamples[u]*nbias[u]**2)/\
-                           (Cxyamp[u] - nbias[u])**2 +\
-                           ((Pnoise)/(avgPx[u]-Pnoise))**2 +\
-                           ((Prefnoise)/(avgPy[u]-Prefnoise))**2 +\
-                           (nsamples[u]*dcoherence[u]**2)/\
-                           (intcoherence[u]**2)))
-                                
-            intcoherr[u] *= intcoherence[u]
-            intcoherr[u] = abs(intcoherr[u])
-            if(np.isnan(intcoherr[u])=='True'):
-                intcoherr[u] = 0
+        #Phase lag: clockwise
+        phaselag[hp3] = np.atan2(avcxyimag[hp3],avcxyreal[hp3])
         
-        # High powers, low measured coherence 
-        else:    
-            intcoherr[u] = np.sqrt(Prefnoise**2/(avgPx[u]-Prefnoise)**2/\
-            nsamples[u] + Pnoise**2/(avgPy[u]-Pnoise)**2/\
-            nsamples[u] + (dcoherence[u]/intcoherence[u])**2)
-            intcoherr[u] *= intcoherence[u]
-            intcoherr[u] = abs(intcoherr[u])
-            if(np.isnan(intcoherr[u])=='True'):
-                intcoherr[u] = 0
-            
-    # Compute phase lag as a function of frequency between the 
-    # two energy bands        
-    Cxyimag = np.imag(avgCxy)
-    Cxyreal = np.real(avgCxy)
-    phaselag = np.zeros(len(Cxyimag))
-    dphaselag = np.zeros(len(Cxyimag))
-                                            
-    for hp3 in range(len(phaselag)):
-                    
-        #Clockwise
-        phaselag[hp3] = np.arctan(Cxyimag[hp3]/Cxyreal[hp3])
-        div = phaselag[hp3]/np.pi
+        # phaselag[hp3] = np.arctan(avcxyimag[hp3]/avcxyreal[hp3])
+        # #Ensure phase lag is confined to between -pi to pi
+        # div = phaselag[hp3]/np.pi
         
-        #Ensure phase lag is confined to between -pi to pi
-        if(div>1):
+        # if(div>1):
                         
-            divs = str(div)
-            divnum = int(divs.split(".")[0])
+        #     divs = str(div)
+        #     divnum = int(divs.split(".")[0])
                                             
-            #Should be between 0 to 1
-            if((divnum-1)%3==0):
-                div -= divnum
+        #     #Should be between 0 to 1
+        #     if((divnum-1)%3==0):
+        #         div -= divnum
             
-            #Should be between 0 to 1
-            if(divnum%3==0):
-                div -= divnum
+        #     #Should be between 0 to 1
+        #     if(divnum%3==0):
+        #         div -= divnum
 
-            #Should be between -1 to 0
-            if((divnum+1)%3==0):
-                div += (divnum+1)
+        #     #Should be between -1 to 0
+        #     if((divnum+1)%3==0):
+        #         div += (divnum+1)
             
-        if(div<-1):
+        # if(div<-1):
             
-            divs = str(div)
-            divnum = int(divs.split(".")[0])
+        #     divs = str(div)
+        #     divnum = int(divs.split(".")[0])
             
-            #Should be between 0 to 1
-            if((divnum-1)%3==0):
-                div -= (divnum-1)
+        #     #Should be between 0 to 1
+        #     if((divnum-1)%3==0):
+        #         div -= (divnum-1)
             
-            #Should be between 0 to 1
-            if(divnum%3==0):
-                div -= divnum
+        #     #Should be between 0 to 1
+        #     if(divnum%3==0):
+        #         div -= divnum
 
-            #Should be between -1 to 0
-            if((divnum+1)%3==0):
-                div -= divnum
+        #     #Should be between -1 to 0
+        #     if((divnum+1)%3==0):
+        #         div -= divnum
+
+        # phaselag[hp3] = div*np.pi
         
-        coherence[hp3] = np.sqrt(coherence[hp3])
-        phaselag[hp3] = div*np.pi
-        dphaselag[hp3] = np.sqrt((1.0-coherence[hp3]**2)/\
-                         (2.0*nsamples[hp3]*coherence[hp3]**2))
+        #Uncertainty in coherence and phase lag
+        dplag = 0
+        if(coherence[hp3]>=0):
             
+            if(coherence[hp3]>1):
+                coherence[hp3] = 1
+            
+            coherence[hp3] = np.sqrt(coherence[hp3])
+            
+            dcoherence[hp3] =\
+            ((2.0/(nsamples[hp3]))**(0.5))*(1 - coherence[hp3]**2)/\
+            (coherence[hp3])
+            
+            dplag =\
+            (1.0-coherence[hp3]**2)/(2.0*nsamples[hp3]*coherence[hp3]**2)
+            dphaselag[hp3] = np.sqrt(dplag)
+
+        if(coherence[hp3]<0):
+            coherence[hp3] = 0
+            dcoherence[hp3] = 0
+            dplag = -(1.0)/(2*nsamples[hp3])
+            dphaselag[hp3] = np.sqrt(abs(dplag))
+    
+        #Uncertainty in intrinsic coherence
+        
+        #Case A: high powers, low coherence             
+        intcoherr[hp3] = np.sqrt(Prefnoise**2/(avgPx[hp3]-Prefnoise)**2/\
+        nsamples[hp3] + Pnoise**2/(avgPy[hp3]-Pnoise)**2/\
+        nsamples[hp3] + (dcoherence[hp3]/intcoherence[hp3])**2)
+            
+        intcoherr[hp3] *= intcoherence[hp3]
+        intcoherr[hp3] = abs(intcoherr[hp3])
+        if(np.isnan(intcoherr[hp3])=='True'):
+            intcoherr[hp3] = 0
+        
+        #Case B: high powers, high coherence                     
+        cond1 = (arbfact*Pnoise)/(np.sqrt(nsamples[hp3]))
+        cond2 = (arbfact*Prefnoise)/(np.sqrt(nsamples[hp3]))
+        cond3 = (arbfact*nbias[hp3])/((avgPx[hp3])*(avgPy[hp3]))
+
+        if((avgPx[hp3]-Pnoise)>cond1 and (avgPy[hp3]-Prefnoise)>cond2\
+            and coherence[hp3]>cond3):
+                            
+            intcoherr[hp3] = ((nsamples[hp3])**-0.5)*\
+                           (np.sqrt((2*nsamples[hp3]*nbias[hp3]**2)/\
+                           (Cxyamp[hp3] - nbias[hp3])**2 +\
+                           ((Pnoise)/(avgPx[hp3]-Pnoise))**2 +\
+                           ((Prefnoise)/(avgPy[hp3]-Prefnoise))**2 +\
+                           (nsamples[hp3]*dcoherence[hp3]**2)/\
+                           (intcoherence[hp3]**2)))
+                                
+            intcoherr[hp3] *= intcoherence[hp3]
+            intcoherr[hp3] = abs(intcoherr[hp3])
+            if(np.isnan(intcoherr[hp3])=='True'):
+                intcoherr[hp3] = 0
+        
+                
     return freqx,dfreqx,phaselag,dphaselag,coherence,dcoherence
 
-#Estimate covariance spectrum in Fourier domain (Uttley et al. 2014)
-def covariance_spectrum(tlc,lc,lcerr,reflc,reflcerr,lcbkg,refbkg,Mseg,\
-                        bfactor,Dt,stats,fbmin,fbmax,window,rmbt):
+#Compute covariance spectrum in Fourier domain (Uttley et al. 2014)
+def covariance_spectrum(lc,lcerr,reflc,reflcerr,lcbkg,lcbkgerr,\
+                        refbkg,refbkgerr,Mseg,bfactor,Dt,stats,\
+                        fbmin,fbmax,window,rmbt):
                         
     #Compute noise level depending on whether the counting statistics
     #are Poissonian or not 
@@ -1191,7 +1381,9 @@ def covariance_spectrum(tlc,lc,lcerr,reflc,reflcerr,lcbkg,refbkg,Mseg,\
         reflctemp = reflc[kz*div:(kz+1)*div]
         reflctemperr = reflcerr[kz*div:(kz+1)*div]
         lcbkgtemp = lcbkg[kz*div:(kz+1)*div]
+        lcbkgtemperr = lcbkgerr[kz*div:(kz+1)*div]
         refbkgtemp = refbkg[kz*div:(kz+1)*div]
+        refbkgtemperr = refbkgerr[kz*div:(kz+1)*div]
         windowtemp = window[kz*div:(kz+1)*div]
                         
         #Ambient noise level in PSD
@@ -1221,65 +1413,144 @@ def covariance_spectrum(tlc,lc,lcerr,reflc,reflcerr,lcbkg,refbkg,Mseg,\
             
             lctemp = np.array(lctemp)
             lctemperr = np.array(lctemperr)
-                                                            
-            #FFT of comparison-band LC
-            Xn = 0.5*(fft.fft(lctemp+lctemperr)+fft.fft(lctemp-lctemperr)) 
-            Xnerr = 0.5*(fft.fft(lctemp+lctemperr)-fft.fft(lctemp-lctemperr))
-            Xnconj = 0.5*(np.conj(Xn+Xnerr)+np.conj(Xn-Xnerr))
-            Xnconjerr = 0.5*(np.conj(Xn+Xnerr)-np.conj(Xn-Xnerr))
-            fxn = fft.fftfreq(len(lctemp),d=Dt)
-                        
-            #FFT of reference-band LC
-            Yn = 0.5*(fft.fft(reflctemp+reflctemperr)+\
-                 fft.fft(reflctemp-reflctemperr))
-            Ynerr = 0.5*(fft.fft(reflctemp+reflctemperr)-\
-                    fft.fft(reflctemp-reflctemperr))
-            Ynconj = 0.5*(np.conj(Yn+Ynerr)+np.conj(Yn-Ynerr))
-            Ynconjerr = 0.5*(np.conj(Yn+Ynerr)-np.conj(Yn-Ynerr))
-            fyn = fft.fftfreq(len(reflctemp),d=Dt)
             
-            # FFT of window function
-            Wn = fft.fft(windowtemp)
+            #Compute FFTs and their errors
+            Xnup = np.fft.fft(lctemp+lctemperr,n=len(lctemp))
+            Xndown = np.fft.fft(lctemp-lctemperr,n=len(lctemp))
+            Ynup = np.fft.fft(reflctemp+reflctemperr,n=len(reflctemp))
+            Yndown = np.fft.fft(reflctemp-reflctemperr,n=len(reflctemp))
+            Xnbkgup = np.fft.fft(lcbkgtemp+lcbkgtemperr,n=len(lcbkgtemp))
+            Xnbkgdown =  np.fft.fft(lcbkgtemp-lcbkgtemperr,n=len(lcbkgtemp))
+            Ynbkgup = np.fft.fft(refbkgtemp+refbkgtemperr,n=len(refbkgtemp))
+            Ynbkgdown = np.fft.fft(refbkgtemp-refbkgtemperr,n=len(refbkgtemp))
+            Wn = np.fft.fft(windowtemp,n=len(windowtemp))
+            
+            Xn = 0.5*(Xnup+Xndown)
+            Xnerr = 0.5*(Xnup-Xndown)
+            Yn = 0.5*(Ynup+Yndown)
+            Ynerr = 0.5*(Ynup-Yndown)
+            Xnbkg = 0.5*(Xnbkgup+Xnbkgdown)
+            Xnbkgerr = 0.5*(Xnbkgup-Xnbkgdown)
+            Ynbkg = 0.5*(Ynbkgup+Ynbkgdown)
+            Ynbkgerr = 0.5*(Ynbkgup-Ynbkgdown)
+            Xnconj = np.conj(Xn)
+            Xnconjerr = np.conj(Xnerr)
+            Ynconj = np.conj(Yn)
+            Ynconjerr = np.conj(Ynerr)
+            Xnconjbkg = np.conj(Xnbkg)
+            Xnconjbkgerr = np.conj(Xnbkgerr)
+            Ynconjbkg = np.conj(Ynbkg)
+            Ynconjbkgerr = np.conj(Ynbkgerr)
             Wnconj = np.conj(Wn)
-            
-            if(rmbt=="True"):
-                
-                #Remove beats due to window
-                Xn /= Wn
-                Yn /= Wn
-                Xnconj /= Wnconj
-                Ynconj /= Wnconj
-                        
-            Xn = Xn[fxn>0] 
+            fxn = np.fft.fftfreq(len(lctemp),d=Dt)
+
+            #Deconvolve FFT from window (remove beat periods)
+            Xnrem,Xnup = signal.deconvolve(Xnup,Wn)
+            Xnup += Xnrem
+            Xnrem,Xndown = signal.deconvolve(Xndown,Wn)
+            Xndown += Xnrem
+            Xnrembkg,Xnbkgup = signal.deconvolve(Xnbkgup,Wn)
+            Xnbkgup += Xnrembkg
+            Xnrembkg,Xnbkgdown = signal.deconvolve(Xnbkgdown,Wn)
+            Xnbkgdown += Xnrembkg
+            Ynrem,Ynup = signal.deconvolve(Ynup,Wn)
+            Ynup += Ynrem
+            Ynrem,Yndown = signal.deconvolve(Yndown,Wn)
+            Yndown += Ynrem
+            Ynrembkg,Ynbkgup = signal.deconvolve(Ynbkgup,Wn)
+            Ynbkgup += Ynrembkg
+            Ynrembkg,Ynbkgdown = signal.deconvolve(Ynbkgdown,Wn)
+            Ynbkgdown += Ynrembkg
+            Xnd = 0.5*(Xnup+Xndown)
+            Xnerrd = 0.5*(Xnup-Xndown)
+            Xnbkgd = 0.5*(Xnbkgup+Xnbkgdown)
+            Xnbkgerrd = 0.5*(Xnbkgup-Xnbkgdown)
+            Xnconjd = np.conj(Xnd)
+            Xnconjerrd = np.conj(Xnerrd)
+            Xnbkgconjd = np.conj(Xnbkgd)
+            Xnbkgconjerrd = np.conj(Xnbkgerrd)
+            Ynd = 0.5*(Ynup+Yndown)
+            Ynerrd = 0.5*(Ynup-Yndown)
+            Ynbkgd = 0.5*(Ynbkgup+Ynbkgdown)
+            Ynbkgerrd = 0.5*(Ynbkgup-Ynbkgdown)
+            Ynconjd = np.conj(Ynd)
+            Ynconjerrd = np.conj(Ynerrd)
+            Ynbkgconjd = np.conj(Ynbkgd)
+            Ynbkgconjerrd = np.conj(Ynbkgerrd)
+
+            #Cut at frequencies > 0
+            Xn = Xn[fxn>0]
             Xnerr = Xnerr[fxn>0]
+            Xnbkg = Xnbkg[fxn>0]
+            Xnbkgerr = Xnbkgerr[fxn>0]
             Xnconj = Xnconj[fxn>0]
             Xnconjerr = Xnconjerr[fxn>0]
-            Yn = Yn[fyn>0]
-            Ynerr = Ynerr[fyn>0]
-            Ynconj = Ynconj[fyn>0]
-            Ynconjerr = Ynconjerr[fyn>0]
+            Xnconjbkg = Xnconjbkg[fxn>0]
+            Xnconjbkgerr = Xnconjbkgerr[fxn>0]
+            
+            Xnd = Xnd[fxn>0]
+            Xnerrd = Xnerrd[fxn>0]
+            Xnconjd = Xnconjd[fxn>0]
+            Xnconjerrd = Xnconjerrd[fxn>0]
+            Xnbkgd = Xnbkgd[fxn>0]
+            Xnbkgerrd = Xnbkgerrd[fxn>0]
+            Xnbkgconjd = Xnbkgconjd[fxn>0]
+            Xnbkgconjerrd = Xnbkgconjerrd[fxn>0]
+            
+            Yn = Yn[fxn>0]
+            Ynerr = Ynerr[fxn>0]
+            Ynbkg = Ynbkg[fxn>0]
+            Ynbkgerr = Ynbkgerr[fxn>0]
+            Ynconj = Ynconj[fxn>0]
+            Ynconjerr = Ynconjerr[fxn>0]
+            Ynconjbkg = Ynconjbkg[fxn>0]
+            Ynconjbkgerr = Ynconjbkgerr[fxn>0]
+            
+            Ynd = Ynd[fxn>0]
+            Ynerrd = Ynerrd[fxn>0]
+            Ynbkgd = Ynbkgd[fxn>0]
+            Ynbkgerrd = Ynbkgerrd[fxn>0]
+            Ynconjd = Ynconjd[fxn>0]
+            Ynconjerrd = Ynconjerrd[fxn>0]
+            Ynbkgconjd = Ynbkgconjd[fxn>0]
+            Ynbkgconjerrd = Ynbkgconjerrd[fxn>0]
+        
             Wn = Wn[fxn>0]
             Wnconj = Wnconj[fxn>0]
             fxn = fxn[fxn>0]
-            fyn = fyn[fyn>0]
+                        
+            Xn = Xnd
+            Xnerr = Xnerrd
+            Xnbkg = Xnbkgd
+            Xnbkgerr = Xnbkgerrd
+            Xnconj = Xnconjd
+            Xnconjerr = Xnconjerrd
+            
+            Yn = Ynd
+            Ynerr = Ynerrd
+            Ynbkg = Ynbkgd
+            Ynbkgerr = Ynbkgerrd
+            Ynconj = Ynconjd
+            Ynconjerr = Ynconjerrd
                                                                                                     
             # #Compute PSD and CPSD with 
             # rms-squared normalisation for each segment
+            # normpsdw = (2.0*Dt)/((len(windowtemp))*(np.mean(windowtemp))**2)
             normpsdx = (2.0*Dt)/((len(lctemp))*(np.mean(lctemp))**2)
-            normpsdw = (2.0*Dt)/((len(windowtemp))*(np.mean(windowtemp))**2)
             normpsdy = (2.0*Dt)/((len(reflctemp))*(np.mean(reflctemp))**2)
             normcross = (2.0*Dt)/((len(lctemp))*(np.mean(lctemp))*\
                         (np.mean(reflctemp)))
             
-            #PSD
-            Psdw = normpsdw*Wnconj*Wn
+            #PSD: Power spectral density
+            
+            # Psdw = normpsdw*Wnconj*Wn
             Psdx = normpsdx*Xnconj*Xn
-            dPsdx = normpsdx*(Xnconjerr*Xn + Xnconj*Xnerr)
+            # dPsdx = normpsdx*(Xnconjerr*Xn + Xnconj*Xnerr)
             Psdy = normpsdy*Ynconj*Yn
-            dPsdy = normpsdy*(Ynconjerr*Yn + Ynconj*Ynerr)
+            # dPsdy = normpsdy*(Ynconjerr*Yn + Ynconj*Ynerr)
             Crossxy = normcross*Ynconj*Xn
-            dCrossxy = normcross*(Ynconjerr*Xn + Ynconj*Xnerr)
-                                    
+            # dCrossxy = normcross*(Ynconjerr*Xn + Ynconj*Xnerr)
+                                                
             if(len(Crossxy)>0 and len(Psdx)>0 and len(Psdy)>0):
                                 
                 # Append CPSD and PSDs for each segment to 
@@ -1330,12 +1601,6 @@ def covariance_spectrum(tlc,lc,lcerr,reflc,reflcerr,lcbkg,refbkg,Mseg,\
         avgCxy = np.array(avgCxy)
         freqx = np.array(freqx)
         
-        lgfreqx = np.log(freqx)
-        lgavgPx = np.log(avgPx)
-        lgavgPy = np.log(avgPy)
-        lgavgPxerr = abs(avgPxerr/avgPx)
-        lgavgPyerr = abs(avgPyerr/avgPy)
-
         # Averaged number of samples
         nsamples = Mseg*Karr
                                     
@@ -1355,6 +1620,9 @@ def covariance_spectrum(tlc,lc,lcerr,reflc,reflcerr,lcbkg,refbkg,Mseg,\
             
         Cxyamperr = 4*((avcxyreal**2)*(avcxyrealerr**2) +\
                     (avcxyimag**2)*(avcxyimagerr**2)) + dnbias
+        
+        print(Cxyamp)
+        print(Cxyamperr)
             
         # Raw Coherence
         coherence = Cxyamp/((avgPx)*(avgPy))
@@ -1376,6 +1644,8 @@ def covariance_spectrum(tlc,lc,lcerr,reflc,reflcerr,lcbkg,refbkg,Mseg,\
                       (rmsy**2)*(rmsx_noise**2)+\
                       (rmsy_noise**2)*(rmsx_noise**2))/(2*nsamples*rmsy**2)
         covariance_err = np.sqrt(dcovsqterm)
+        
+        print(rmsx)
 
         # Filter over a specified frequency range
         covariance = covariance[freqx>fbmin]
@@ -1420,9 +1690,109 @@ def covariance_spectrum(tlc,lc,lcerr,reflc,reflcerr,lcbkg,refbkg,Mseg,\
             mean_covariance = 0
             err_mcov = 0
         
-    return mean_covariance, err_mcov
-               
-#Cross spectrum (stingray)
+    return freqxfilt, mean_covariance, err_mcov, avgCxy, avgCxyerr
+
+#Compute covariance spectrum in time domain (Wilkinson and Uttley 2009)
+def covariance_time_domain(lc,lcerr,reflc,reflcerr,Msegs):
+        
+    sigcov,sigxs_x,sigxs_y,sigerr_x,sigerr_y = [[],[],[],[],[]]
+    Numpt = 0
+    for arr in range(Msegs):
+        
+        #Split LC into M equal segments
+        divs = int(len(reflc)/Msegs) 
+        lctemp = lc[arr*divs:(arr+1)*divs]
+        lctemperr = lcerr[arr*divs:(arr+1)*divs]
+        reflctemp = reflc[arr*divs:(arr+1)*divs]
+        reflctemperr = reflcerr[arr*divs:(arr+1)*divs]
+        
+        Numpt = len(lctemp)
+        mutemp = np.mean(lctemp)
+        mureftemp = np.mean(reflctemp)
+                
+        w1 = np.zeros(len(lctemp))
+        w2 = np.zeros(len(lctemp))
+        w3 = np.zeros(len(lctemp))
+        w4 = np.zeros(len(lctemp))
+        w5 = np.zeros(len(lctemp))
+
+        for jp in range(len(lctemp)):
+            w1[jp] = (lctemp[jp] - mutemp)*(reflctemp[jp] - mureftemp)
+            w2[jp] = lctemperr[jp]**2
+            w3[jp] = reflctemperr[jp]**2
+            w4[jp] = (lctemp[jp]-mutemp)*(lctemp[jp]-mutemp)
+            w5[jp] = (reflctemp[jp] - mureftemp)*(reflctemp[jp] - mureftemp)
+                
+        sigcov.append(np.mean(w1))
+        sigerr_x.append(np.mean(w2))
+        sigerr_y.append(np.mean(w3))
+        sigxs_x.append(np.mean(w4) - np.mean(w2))
+        sigxs_y.append(np.mean(w5) - np.mean(w3))
+                
+    mu_sigcov = np.mean(sigcov)
+    mu_sigxs_x = np.mean(sigxs_x)
+    mu_sigxs_y = np.mean(sigxs_y)
+    mu_sigerr_x = np.mean(sigerr_x)
+    mu_sigerr_y = np.mean(sigerr_y)
+                
+    mean_covariance = mu_sigcov/np.sqrt(mu_sigxs_y)
+    cov_error = np.sqrt((mu_sigxs_x*mu_sigerr_y + mu_sigxs_y*mu_sigerr_x +\
+    mu_sigerr_x*mu_sigerr_y)/(Msegs*Numpt*mu_sigxs_y))
+                    
+    if(np.isnan(mean_covariance)==True):
+        mean_covariance = 0
+        cov_error = 0
+                
+    return mean_covariance, cov_error
+
+#Compute covariance spectrum (stingray)
+def covariance_spectrum_stingray(evfile,\
+    bwidth,fbmin,fbmax,refemin,refemax,egrid,normalisation):
+                                 
+    eventsst_ref = EventList.read(evfile,"hea",\
+    additional_columns=["DET_ID"])
+    frq_interval = [fbmin,fbmax]
+    rf_band = [refemin,refemax]
+    telapse_ref = eventsst_ref.time[-1]-eventsst_ref.time[0] 
+    Msegstref = 0
+
+    if (telapse_ref > 100*ks):
+        Msegstref = 14
+
+    if (telapse_ref > 50*ks and telapse_ref <= 100*ks):
+        Msegstref = 10
+
+    if (telapse_ref > 25*ks and telapse_ref <= 50*ks):
+        Msegstref = 8
+
+    if (telapse_ref > 15*ks and telapse_ref <= 25*ks):
+        Msegstref = 3
+
+    if (telapse_ref <= 15*ks):
+        Msegstref = 1
+     
+    segsize_ref = telapse_ref/Msegstref    
+    covspec = CovarianceSpectrum(eventsst_ref,\
+              freq_interval=frq_interval,segment_size=segsize_ref,\
+              bin_time=bwidth,energy_spec=egrid,\
+              norm=normalisation,ref_band=rf_band)
+    
+    covspecE = covspec.energy
+    covspecspt = covspec.spectrum
+    covspecspterr = covspec.spectrum_error
+            
+    isnanarrcov = np.isnan(covspecspt)
+    covspecE = covspecE[isnanarrcov==False]
+    covspecspt = covspecspt[isnanarrcov==False]
+    covspecspterr = covspecspterr[isnanarrcov==False]
+    isnanarrcov = np.isnan(covspecspterr)
+    covspecE = covspecE[isnanarrcov==False]
+    covspecspt = covspecspt[isnanarrcov==False]
+    covspecspterr = covspecspterr[isnanarrcov==False]
+
+    return covspecE,covspecspt,covspecspterr
+       
+#Compute cross spectrum and compare with stingray
 def cross_spectrum_stingray(eventsst_ref,eventsst_comp,\
                             Msegstref,bwidth,normalisation,fbinmin,fbinmax):
     
@@ -1447,7 +1817,7 @@ def cross_spectrum_stingray(eventsst_ref,eventsst_comp,\
                 
     return cspecfreq,cspecamp,cspecamperr
 
-#Generate LC from event-list
+#Make LC from event-lists
 def make_lc(tarr,bintime,tstart,tstop,statlc):
     
     tobs = np.arange(tstart,tstop+bintime,bintime)
@@ -1466,7 +1836,50 @@ def make_lc(tarr,bintime,tstart,tstop,statlc):
     robs/=bintime
     errobs/=bintime
     
+    ctsum = np.sum(robs*bintime)
+    print(ctsum)
+    
     return tobs,robs,errobs
+
+#Filter LC over a narrow frequency range
+def filteredlc(softbandlc,softbandlcerr,freqmin,freqmax,binsize,telapse):
+               
+    Xnfilt = 0.5*(fft.fft(softbandlc+softbandlcerr) +\
+             fft.fft(softbandlc-softbandlcerr))
+    Xnfilterr = 0.5*(fft.fft(softbandlc+softbandlcerr) -\
+                fft.fft(softbandlc-softbandlcerr))
+    fxnfilt = fft.fftfreq(len(softbandlc),d=binsize)
+        
+    Xnpos = Xnfilt[fxnfilt>=freqmin]
+    Xnposerr = Xnfilterr[fxnfilt>=freqmin]
+    fxnpos = fxnfilt[fxnfilt>=freqmin]
+    Xnpos = Xnpos[fxnpos<=freqmax]
+    Xnposerr = Xnposerr[fxnpos<=freqmax]
+    fxnpos = fxnpos[fxnpos<=freqmax]
+    Xnneg = Xnfilt[fxnfilt>=-freqmax]
+    Xnnegerr = Xnfilterr[fxnfilt>=-freqmax]
+    fxnneg = fxnfilt[fxnfilt>=-freqmax]
+    Xnneg = Xnneg[fxnneg<=-freqmin]
+    Xnnegerr = Xnnegerr[fxnneg<=-freqmin]
+    fxnneg = fxnneg[fxnneg<=-freqmin]
+    
+    Xnneg = np.flip(Xnneg)
+    compxn = np.hstack((Xnpos,Xnneg))
+    compxn = np.insert(compxn,0,complex(Xnfilt[0]))
+    Xnnegerr = np.flip(Xnnegerr)
+    compxnerr = np.hstack((Xnposerr,Xnnegerr))
+    compxnerr = np.insert(compxnerr,0,complex(Xnfilterr[0]))
+    freqxn = np.hstack((fxnpos,fxnneg))
+    freqxn = np.insert(freqxn,0,fxnfilt[0])
+        
+    countsx = 0.5*(np.fft.ifft(compxn+compxnerr)+\
+              np.fft.ifft(compxn-compxnerr))
+    countsxerr = 0.5*(np.fft.ifft(compxn+compxnerr)-\
+                 np.fft.ifft(compxn-compxnerr))
+    countsx = np.real(countsx)   
+    countsxerr = np.real(countsxerr)
+        
+    return countsx, countsxerr
 
 #Fill gaps in LC
 def fgaps(arrsarrgap,constrategap,cthreshpoisson,binsize):
@@ -1490,7 +1903,7 @@ def fgaps(arrsarrgap,constrategap,cthreshpoisson,binsize):
         if(constrategap=="True"):
             
             mureflcconst = np.mean(reflcpos)
-            mucomplcconst = np.mean(complcpos)
+            mhp3omplcconst = np.mean(complcpos)
             
             muerrreflcconst = np.sqrt(np.sum(ereflcpos**2))/\
             len(reflcpos)
@@ -1500,7 +1913,7 @@ def fgaps(arrsarrgap,constrategap,cthreshpoisson,binsize):
             timerefsim.append(tcomplcpos[jdsamp])
             reflccombsim.append(mureflcconst)
             errreflccombsim.append(muerrreflcconst)
-            complccombsim.append(mucomplcconst)
+            complccombsim.append(mhp3omplcconst)
             errcomplccombsim.append(muerrcomplcconst)
         
         #Reference band
@@ -1528,15 +1941,15 @@ def fgaps(arrsarrgap,constrategap,cthreshpoisson,binsize):
         
         if(constrategap=="False" and ctsbincomp<cthreshpoisson):
            
-            mucomplc = np.random.poisson(ctsbincomp,1)[0]/binsize
-            complccombsim.append(mucomplc)
+            mhp3omplc = np.random.poisson(ctsbincomp,1)[0]/binsize
+            complccombsim.append(mhp3omplc)
             errcomplccombsim.append(ecomplcpos[randintcomp])
 
         if(constrategap=="False" and ctsbincomp>=cthreshpoisson):
            
-            mucomplc = np.random.normal(complcpos[randintcomp],\
+            mhp3omplc = np.random.normal(complcpos[randintcomp],\
                        ecomplcpos[randintcomp],1)[0]
-            complccombsim.append(mucomplc)
+            complccombsim.append(mhp3omplc)
             errcomplccombsim.append(ecomplcpos[randintcomp])            
     
     timerefsim = np.array(timerefsim)
@@ -1545,9 +1958,10 @@ def fgaps(arrsarrgap,constrategap,cthreshpoisson,binsize):
     complccombsim = np.array(complccombsim)
     errcomplccombsim = np.array(errcomplccombsim)    
     resultks = stats.ks_2samp(reflccombsim,reflc)
+    print(resultks)
         
     timerefgap,reflccombgap,complccombgap,\
-    errreflccombgap,errcomplccombgap,windowgap = [[],[],[],[],[],[]]
+    errreflccombgap,errcomplccombgap = [[],[],[],[],[]]
                         
     for jwinref in range(len(tcomplc)):
                                                                 
@@ -1593,7 +2007,7 @@ def fgaps(arrsarrgap,constrategap,cthreshpoisson,binsize):
         
     return tcomplc, reflc, ereflc,\
     complc, ecomplc, wcomplc, timerefgap, reflccombgap, errreflccombgap,\
-    complccombgap, errcomplccombgap
+    complccombgap, errcomplccombgap    
 
 ########################### Covariance spectrum ###############################
 
@@ -1648,12 +2062,12 @@ plotlags = args['plotlags']
 
 #Group covariance spectrum
 groupscale = args['groupscale']
-storagedir = "lags"
+storagedir = "lags/"
 
 loc = os.getcwd()
 os.chdir(loc + "/" + storagedir + "/")
 
-keyobsid = "epn*net*obs*0*_1_*en3*comp*.lc"
+keyobsid = "epn*net*obs*0*_1_*en1*comp*.lc"
 obsidnum = []
 for fobsid in sorted(glob.glob(keyobsid)):
     obsid = fobsid.split(".lc")[0].split("_")[2].split("obs")[1]
@@ -1674,19 +2088,20 @@ plotmcmc = "False"
 plotcov = "False"
 removebt = "False"
 metmcmc = "timelags"
+plotlagfreq = "False"
 
-for kn in range(len(obsidnum)):   
-                            
+for kn in range(len(obsidnum)):  
+                                        
     Nenergies = 0
     for jn in sorted(glob.glob("epn*net*" + str(obsidnum[kn])+\
                                "*_1_*ref*.lc")):
         Nenergies += 1  
                     
     keyobs1 = "epn_net_obs*"
-    keyobs2 = "*_1_*en3*ref.lc"
+    keyobs2 = "*_1_*en1*ref.lc"
             
     for tempreflcfile in sorted(glob.glob(keyobs1+str(obsidnum[kn])+keyobs2)):
-                                                                
+                                                                                                        
         for ln in range(len(fminb)):
                                     
             cov,dcov,covtd,dcovtd,fvarc,fvarcerr = [[],[],[],[],[],[]]
@@ -1699,7 +2114,7 @@ for kn in range(len(obsidnum)):
                 = [[],[],[],[],[],[],[],[],[],[]]
             
                 for k in range(Nenergies):
-                                    
+                                                        
                     visnum = int(tempreflcfile.split("_")[3])
                     ennum = str(k+1)
                     ObsId = tempreflcfile.split("obs")[1].split("_")[0]
@@ -1803,11 +2218,11 @@ for kn in range(len(obsidnum)):
                             Mseg = 8
                     
                         if (telapse > 15*ks and telapse <= 25*ks):
-                            Mseg = 3
+                            Mseg = 6
                     
                         if (telapse <= 15*ks):
                             Mseg = 1
-                                        
+                                           
                     quantcomp = hducomp[1].header['DSVAL6']
                     
                     if(quantcomp!='TABLE'):
@@ -1818,7 +2233,7 @@ for kn in range(len(obsidnum)):
                                        .split(":")[1])/1000.0
                         energiesmean = 0.5*(energymax+energymin)
                         denergiesmean = 0.5*(energymax-energymin)
-                        
+                                                
                         energiesref.append(energiesmean)
                         denergiesref.append(denergiesmean)
                         enlag.append(energiesmean)
@@ -1834,12 +2249,12 @@ for kn in range(len(obsidnum)):
                                        .split(":")[1])/1000.0
                         energiesmean = 0.5*(energymin+energymax)
                         denergiesmean = 0.5*(energymin-energymax)
-                        
+                                                
                         energiesref.append(energiesmean)
                         denergiesref.append(denergiesmean)
                         enlag.append(energiesmean)
                         denlag.append(denergiesmean)
-                                                                                                                                                                
+                
                     if(len(rateref)>0):
                         
                         windowcomb = np.array(windowref)
@@ -1880,7 +2295,7 @@ for kn in range(len(obsidnum)):
                             Mseg,bsizeref,normpsd,fminb,fmaxb)
                     
                             #CPSD
-                            fxy, cpxy, cpxyerr =\
+                            fxy, _, _, cpxy, cpxyerr =\
                             covariance_spectrum(complccomb,\
                             errcomplccomb,reflccomb,errreflccomb,\
                             complcbkgcomb,reflcbkgcomb,\
@@ -1943,12 +2358,7 @@ for kn in range(len(obsidnum)):
                             complccomb,errcomplccomb,reflcbkgcomb,\
                             complcbkgcomb,Mseg,bfactor,bsizeref,\
                             statpow,removebt)
-    
-                            # plt.errorbar(lgfreqypsd,lgavgPypsd,\
-                            #              yerr=lgavgPyerrpsd,fmt='k.')
-                            # plt.plot(lgfreqypsdmod,lgymodpsd,'b-')
-                            # plt.show()
-                                                                                                                                                                                                                                           
+                                                                                                                                                                                                                                               
                         if(fillgaps=="True"):
                             
                             if(timmerkoenig=='True'):
@@ -2042,7 +2452,86 @@ for kn in range(len(obsidnum)):
                                 complccomb,errcomplccomb,\
                                 complcbkgcomb,errcomplcbkgcomb,\
                                 timecombref = arraysR
-    
+                            
+                        # # Define impulse response and smooth LC (Tophat window)                        
+                        # xc = 0.3*(timecombref[-1]-timecombref[0])
+                        # taus = 0.008*(timecombref[-1]-timecombref[0])
+                        # boxfilt,wcpos,wtaupos = tophatfn(xc,taus,timecombref)
+                                                
+                        # #Convolve with impulse response
+                        # rateref_filt =\
+                        # signal.convolve(reflccomb,boxfilt,mode='full')
+                        # errorref_filt =\
+                        # np.zeros(len(rateref_filt))    
+                        # rateref_filtbkg =\
+                        # signal.convolve(reflcbkgcomb,boxfilt,mode='full') 
+                        # errorref_filtbkg =\
+                        # np.zeros(len(reflcbkgcomb))
+                        
+                        # ratecomp_filt =\
+                        # signal.convolve(complccomb,boxfilt,mode='full')
+                        # errorcomp_filt =\
+                        # np.zeros(len(ratecomp_filt))   
+                        # ratecomp_filtbkg =\
+                        # signal.convolve(complcbkgcomb,boxfilt,mode='full') 
+                        # errorcomp_filtbkg =\
+                        # np.zeros(len(ratecomp_filtbkg))
+                                                                                                
+                        # #Segment
+                        # reflccombsmooth =\
+                        # rateref_filt[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                        # errreflccombsmooth =\
+                        # errorref_filt[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                        # reflcbkgcombsmooth =\
+                        # rateref_filtbkg[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                        # errreflcbkgcombsmooth =\
+                        # errorref_filtbkg[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                        
+                        # complccombsmooth =\
+                        # ratecomp_filt[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                            
+                        # errcomplccombsmooth =\
+                        # errorcomp_filt[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                        # complcbkgcombsmooth =\
+                        # ratecomp_filtbkg[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                        # errcomplcbkgcombsmooth =\
+                        # errorcomp_filtbkg[int((xc+taus)/bsizeref):\
+                        # -int(0.5*(telapse+xc+taus)/bsizeref)]
+                        # timecombrefsmooth =\
+                        # bsizeref*np.arange(0,len(reflccombsmooth),1)
+                        
+                        # #Fourier domain filtering
+                        # fminfilt = 1e-4
+                        # fmaxfilt = 5e-4
+                        # tmaxfilt = fminfilt**-1
+                        # dtbinfilt = 0.5*fmaxfilt**-1
+                        # tdurfilt = tmaxfilt 
+                        # reflccomb,errreflccomb =\
+                        # filteredlc(reflccomb,errreflccomb,fminfilt,fmaxfilt,\
+                        #            dtbinfilt,tdurfilt)
+                        # complccomb,errcomplccomb =\
+                        # filteredlc(complccomb,errcomplccomb,fminfilt,fmaxfilt,\
+                        #            dtbinfilt,tdurfilt)
+                        # timecombref = np.linspace(0,tmaxfilt,len(reflccomb))
+                        # bsizeref = timecombref[1]-timecombref[0]
+                             
+                        # #Normalise
+                        # errreflccomb /= np.mean(reflccomb)
+                        # reflccomb /= np.mean(reflccomb)
+                        # errcomplccomb /= np.mean(complccomb)
+                        # complccomb /= np.mean(complccomb)
+                        # errcomplccombsmooth /= np.mean(complccombsmooth)
+                        # complccombsmooth /= np.mean(complccombsmooth)
+                        # errreflccombsmooth /= np.mean(reflccombsmooth)
+                        # reflccombsmooth /= np.mean(reflccombsmooth)
+                            
                         if(plotlc=="True" and ln==0):
                                                                                     
                             #Plot LCs
@@ -2051,74 +2540,77 @@ for kn in range(len(obsidnum)):
                             labelsrccomp = "Comparison band LC: " +\
                             laben + " keV"    
                                                             
-                            plt.figure()
-                            plt.title("XMM-Newton (EPIC-PN) lightcurves")
+                            fig = plt.figure(figsize=(8,8))
+                            
+                            plt.title("XMM-Newton (EPIC-PN) lightcurves: " +\
+                                      "Obs ID: " + str(ObsId), fontsize=14)
                             plt.errorbar(timecombref/ks,reflccomb,\
-                                         yerr=errreflccomb,\
-                                         fmt='r.')
+                                         yerr=abs(errreflccomb),fmt='r.')
                             plt.errorbar(timecombref/ks,complccomb,\
-                                         yerr=errcomplccomb,\
-                                         label=labelsrccomp,\
-                                         fmt='b.')
-                            
-                            
+                                         yerr=abs(errcomplccomb),\
+                                         label=labelsrccomp,fmt='b.')
+                            plt.tick_params(axis='both', which='major',\
+                                            labelsize=14)
+                                
                             if(fillgaps=="True" and fillmethod=="B"):
                                 
                                 plt.errorbar(timesimref/ks,refsimlc,\
-                                yerr=errrefsimlc,fmt='g.',\
+                                yerr=errrefsimlc,fmt='k.',\
                                 label="Interpolated: Bootstrapped")
                                 plt.errorbar(timesimref/ks,compsimlc,\
-                                yerr=errcompsimlc,fmt='k.',\
-                                label="Interpolated: Bootstrapped")
-                                    
-                            plt.plot(timecombref/ks,windowcomb,'m-')
-                            plt.tick_params(axis='both', which='major',\
-                                            labelsize=14)
+                                yerr=errcompsimlc,fmt='k.')
+                        
                             plt.legend(loc="upper right")
                             plt.ylabel("Count rate [s$^{-1}$]",\
                                        fontsize=14)
                             plt.xlabel("Time [ks]",fontsize=14)
-                            plt.show()
-    
-                            #Mean and RMS of rate
-                            muref = np.mean(rateref)
-                            dmuref = np.sum(errorref**2)/len(rateref)
-                            mucomp = np.mean(ratecomp)
-                            dmucomp = np.sum(errorcomp**2)/len(ratecomp)
                             
-                        mucomp = np.mean(complccomb)
-                        muref = np.mean(reflccomb)
+                            path = loc + "/" + storagedir + "/"
+                            fsavefile = "lc_" + str(obsidnum[kn]) +\
+                            ".pdf"
+                            
+                            plt.savefig(path+fsavefile,\
+                            dpi=150, bbox_inches='tight')
+                                
+                            # plt.show()
+                                
+                        #Mean and RMS of rate
+                        muref = np.mean(rateref)
+                        dmuref = np.sum(errorref**2)/len(rateref)
+                        mucomp = np.mean(ratecomp)
+                        dmucomp = np.sum(errorcomp**2)/len(ratecomp)
+                        timecombrefsmooth =\
+                        bsizeref*np.arange(0,len(reflccomb),1)
+
                         countcomp = complccomb*bsizeref
                         countcomp_err = errcomplccomb*bsizeref
+                        countcompbkg = complcbkgcomb*bsizeref
+                        countcompbkgerr = errcomplcbkgcomb*bsizeref
                         countref = reflccomb*bsizeref
                         countref_err = errreflccomb*bsizeref
-                        countcompbkg = ratecompbkg*bsizeref
-                        countrefbkg = raterefbkg*bsizeref
+                        countrefbkg = reflcbkgcomb*bsizeref
+                        countrefbkgerr = errreflcbkgcomb*bsizeref
                         
                         #Add a floor
                         countcomp -= np.min(countcomp)
                         countref -= np.min(countref)
-                        
-                        timecomp = np.arange(0,len(countcomp),1)*bsizeref
-                        timeref = timecomp
-                        ywindowR = np.ones(len(rateref))
-                                                                        
+                                                                                                                                                
                         #Compute event lists from LC
                         lccomp = Lightcurve(timecombref,countcomp,\
                         error=countcomp_err,dt=bsizeref)
-                        lcref = Lightcurve(timeref,countref,\
+                        lcref = Lightcurve(timecombref,countref,\
                         error=countref_err,dt=bsizeref)
-                        
+                                                    
                         segsizest =\
                         (lcref.time[-1]-lcref.time[0]+bsizeref)/Mseg
                         
                         evcomplc = EventList.from_lc(lccomp)
                         evreflc = EventList.from_lc(lcref)
-                                                
+                                                                                     
                         #Compute time lags using Stingray
                         csa = AveragedCrossspectrum.from_events(evcomplc,\
                         evreflc, segment_size=segsizest,\
-                        dt=bsizeref, norm="abs",use_common_mean=True,\
+                        dt=bsizeref,norm="abs",use_common_mean=True,\
                         silent=True)
                             
                         rebloglags = 0.0
@@ -2129,7 +2621,18 @@ for kn in range(len(obsidnum)):
                         coh, coh_e = csa.coherence()
                         lag, lag_e = csa.time_lag()
                         lagp, lag_ep = csa.phase_lag()
-    
+                        
+                        infarr = np.isinf(lag_ep)
+                        lag_eps = lag_ep[infarr==False]
+                        isnanarr = np.isnan(lag_eps)
+                        lag_eps = lag_eps[isnanarr==False]
+                        
+                        for klagp in range(len(lag_ep)):
+                                                        
+                            if(np.isnan(lag_ep[klagp])==True or 
+                               np.isinf(lag_ep[klagp])==True):
+                                lag_ep[klagp] = np.median(lag_eps)
+                                                
                         csumref = bsizeref*np.sum(lcref.countrate)
                         csumreferr = bsizeref*\
                         np.sqrt(np.sum(lcref.countrate_err**2))
@@ -2142,30 +2645,30 @@ for kn in range(len(obsidnum)):
                         AveragedPowerspectrum.from_lightcurve(lcref,\
                         segment_size=segsizest,norm="frac",silent=True)
                         
+                        reblog = 0.1
                         psdref = psdref.rebin_log(reblog)
                         psdcomp = psdcomp.rebin_log(reblog)
                 
                         # Model PSDs
-                        
                         # Initialise fitting parameters
                         pfitref = psdref.power
                         perrfitref = psdref.power_err
                         freqfitref = psdref.freq
-                        pfit = psdcomp.power
-                        perrfit = psdcomp.power_err
-                        freqfit = psdcomp.freq
-                    
-                        # Perform PSD fitting in log space and transform back
+                                                                    
+                        # Perform PSD fitting in log space and transform back]
+                        freqfitreflog = np.log10(freqfitref)
                         pfitreflog = np.log10(pfitref)
                         perrfitreflog = (perrfitref)/(pfitref*np.log(10.0))
+                        
                         ampinitref = np.mean(pfitreflog)
                         alphainitref = 2.0
-                        ampbesinitref = 100.0
-                        norderinitref = 1
+                        ampbesinitref = 1.0
+                        norderinitref = 1.0
                         paramsinitial =\
-                        [ampinitref,alphainitref,ampbesinitref,norderinitref]
+                        [ampinitref,alphainitref,ampbesinitref,\
+                         norderinitref]
                         fitobj = kmpfit.Fitter(residuals=resid_besselmod,\
-                        data=(freqfitref,pfitreflog,perrfitreflog))
+                        data=(freqfitreflog,pfitreflog,perrfitreflog))
                         fitobj.fit(params0=paramsinitial)
                         chi2min = fitobj.chi2_min
                         dof = fitobj.dof
@@ -2178,24 +2681,32 @@ for kn in range(len(obsidnum)):
                         ampbesbestreferr = fitobj.xerror[2]
                         norderbestref = fitobj.params[3]
                         norderbestreferr = fitobj.xerror[3]
-
-                        bestfitparsref =\
-                        [ampbestref,alphabestref,ampbesbestref,norderbestref]
-                                       
+                        
+                        bestfitparsref = [ampbestref,alphabestref,\
+                        ampbesbestref,norderbestref]
+                            
                         fmod = np.linspace(np.min(psdref.freq),\
                         np.max(psdref.freq),1000)
-                        pmodref = 10**(besselmod(bestfitparsref,fmod))
-                                            
+                        fmodlog = np.log10(fmod)
+                        
+                        pmodreflog = besselmod(bestfitparsref,fmodlog)
+                        pmodref = 10**pmodreflog
+                        
+                        pfit = psdcomp.power
+                        perrfit = psdcomp.power_err
+                        freqfit = psdcomp.freq
                         pfitlog = np.log10(pfit)
                         perrfitlog = (perrfit)/(pfit*np.log(10.0))
+                        freqfitlog = np.log10(freqfit)
+                        
                         ampinitcomp = np.mean(pfitlog)
                         alphainitcomp = 2.0
                         ampbesinitcomp = 1.0
-                        norderinitcomp = 1
+                        norderinitcomp = 1.0
                         paramsinitialcomp = [ampinitcomp,alphainitcomp,\
                         ampbesinitcomp,norderinitcomp]
                         fitobjcomp = kmpfit.Fitter(residuals=resid_besselmod,\
-                        data=(freqfit,pfitlog,perrfitlog))
+                        data=(freqfitlog,pfitlog,perrfitlog))
                         fitobjcomp.fit(params0=paramsinitialcomp)
                         chi2mincomp = fitobjcomp.chi2_min
                         dofcomp = fitobjcomp.dof
@@ -2211,25 +2722,34 @@ for kn in range(len(obsidnum)):
 
                         bestfitparscomp = [ampbestcomp,alphabestcomp,\
                                            ampbesbestcomp,norderbestcomp]
-                        pmodref = 10**(besselmod(bestfitparsref,fmod))
-                        pmodcomp = 10**(besselmod(bestfitparscomp,fmod))
+                    
+                        fmodcomp = np.linspace(np.min(psdcomp.freq),\
+                        np.max(psdcomp.freq),1000)
+                        fmodcomplog = np.log10(fmodcomp)
+                        pmodcomplog = besselmod(bestfitparscomp,fmodcomplog)
+                        pmodcomp = 10**pmodcomplog
                                                 
                         #Plot power-spectra
                         if(plotpsd=="True"):
                             
-                            plt.figure()
+                            fig = plt.figure(figsize=(14,7))
+
+                            fsavefile = "psd_" + str(obsidnum[kn]) +\
+                            ".pdf"
+                        
                             plt.title("PSD " + str(srcname) +\
                                       " Obs ID: " + str(ObsId))
-                            plt.errorbar(psdref.freq,psdref.power,\
-                                         yerr=psdref.power_err,fmt='r.',\
+                                
+                            plt.errorbar(freqfitref,pfitref,\
+                                         yerr=perrfitref,fmt='r.',\
                                          label="Reference band")
-                            # plt.plot(fmod,pmodref,'k--',\
-                            #          label="PL fit [reference band]")
                             plt.errorbar(psdcomp.freq,psdcomp.power,\
                                          yerr=psdcomp.power_err,fmt='b.',\
                                          label="Comparison band")
-                            # plt.plot(fmod,pmodcomp,'k-',\
-                            #          label="PL fit [comparison band]")
+                            plt.plot(fmod,pmodref,'k--',\
+                                     label="PL fit [reference band]")
+                            plt.plot(fmod,pmodcomp,'g--',\
+                                     label="PL fit [comparison band]")
                             plt.yscale("log")
                             plt.xscale("log")
                             plt.xlabel("Frequency [Hz]",fontsize=14)
@@ -2238,7 +2758,9 @@ for kn in range(len(obsidnum)):
                             plt.tick_params(axis='both', which='major',\
                                             labelsize=14)
                             plt.legend(loc="best")
+                            # plt.savefig(path+fsavefile,dpi=100)
                             plt.show()
+                            
     
                         #Fractional variability
                         Fracvarref = 0.5*(integrate.simpson(psdref.power+\
@@ -2273,44 +2795,42 @@ for kn in range(len(obsidnum)):
     
                         # Compute time lags (lag-energy spectrum) 
                         # using my method
+                        
                         bfactorlags = 1.0
                         freqS, dfreqS, lagS, lag_eS, cohS, coh_eS =\
-                        time_lag_func(reflccomb,errreflccomb,\
-                        complccomb,errcomplccomb,reflcbkgcomb,\
-                        complcbkgcomb,windowcomb,\
-                        Mseg,bfactorlags,bsizeref,stats)
-                        
-                                                                                                
+                        time_lag_func(countcomp,countcomp_err,\
+                        countref,countref_err,countcompbkg,\
+                        countcompbkgerr,countrefbkg,countrefbkgerr,\
+                        windowcomb,Mseg,bfactorlags,bsizeref,stats)
+                                                    
                         # Compute time lags (lag-frequency spectrum)
                         # using my method
-                        bfactorlags = bfactor
+                        bfactorlagsF = bfactor
                         FreqS, dFreqS, lagfreqS, lagfreq_eS,\
                         cohfreqS, cohfreq_eS =\
-                        time_lag_func(reflccomb,errreflccomb,\
-                        complccomb,errcomplccomb,reflcbkgcomb,\
-                        complcbkgcomb,windowcomb,\
-                        Mseg,bfactorlags,bsizeref,stats)
-                                                
+                        time_lag_func(countcomp,countcomp_err,\
+                        countref,countref_err,countcompbkg,countcompbkgerr,\
+                        countrefbkg,countrefbkgerr,windowcomb,\
+                        Mseg,bfactorlagsF,bsizeref,stats)
+                                                                        
                         lagfreqS = lagfreqS/(2.0*np.pi*FreqS)
                         lagfreq_eS = lagfreq_eS/(2.0*np.pi*FreqS)
                         
-                        if(plotlags=="True"):
+                        isnanarr = np.isnan(FreqS)
+                        FreqS = FreqS[isnanarr==False]
+                        lagfreqS = lagfreqS[isnanarr==False]
+                        lagfreq_eS = lagfreq_eS[isnanarr==False]
                         
-                            plt.errorbar(FreqS,-lagfreqS,yerr=lagfreq_eS,\
-                                         fmt='ko')
-                            plt.errorbar(FreqS,-lagfreqS,yerr=lagfreq_eS,\
-                            markersize=8,marker='o',linestyle='dotted')                            
-                            plt.xscale("log")
-                            plt.xlim(7e-5,2e-3)
-                            plt.xlabel("Frequency [Hz]",\
-                                       fontsize=14)
-                            plt.title("Lag frequency spectrum [" +\
-                                      str(srcname) + "]",fontsize=14)
-                            plt.ylabel("Time lag [s]",fontsize=14)
-                            plt.tick_params(axis='both',\
-                            which='major',labelsize=16)
-                            plt.show()
-                    
+                        isnanarr = np.isnan(lagfreqS)
+                        FreqS = FreqS[isnanarr==False]
+                        lagfreqS = lagfreqS[isnanarr==False]
+                        lagfreq_eS = lagfreq_eS[isnanarr==False]
+                        
+                        isnanarr = np.isnan(lagfreq_eS)
+                        FreqS = FreqS[isnanarr==False]
+                        lagfreqS = lagfreqS[isnanarr==False]
+                        lagfreq_eS = lagfreq_eS[isnanarr==False]
+                                                                                                                                                                                                                                                                    
                         # Compute covariance
                         # Time domain
                         intcovtd,intcoverrtd =\
@@ -2321,39 +2841,37 @@ for kn in range(len(obsidnum)):
                         dcovtd.append(intcoverrtd)
                         
                         # Frequency domain                
-                        intcov,intcoverr =\
-                        covariance_spectrum(\
-                        timecombref,complccomb,errcomplccomb,\
-                        reflccomb,errreflccomb,complcbkgcomb,\
-                        reflcbkgcomb,Mseg,bfactor,bsizeref,\
+                        fint,intcov,intcoverr,csint,cserrint =\
+                        covariance_spectrum(complccomb,errcomplccomb,\
+                        reflccomb,errreflccomb,\
+                        complcbkgcomb,errcomplcbkgcomb,reflcbkgcomb,\
+                        errreflcbkgcomb,Mseg,bfactor,bsizeref,\
                         statpow,fminb[ln],fmaxb[ln],windowcomb,removebt)
-                
                         cov.append(intcov)
                         dcov.append(intcoverr)
-                        
+                                                
                         if(runmcmc=="True"):
-                            
+                                                        
                             fakelags = []
                             
                             for z0 in range(int(Ntrialmcmc)):
-                                
+                                                                                                                                
                                 tlagfk =\
-                                mcmc_det(bsizeref,telapse,Mseg,bfactor,\
+                                mcmc_det_sig(bsizeref,telapse,Mseg,bfactor,\
                                 fminb[ln],fmaxb[ln],\
                                 ampbestref,alphabestref,ampbesbestref,\
                                 norderbestref,ampbestcomp,alphabestcomp,\
                                 ampbesbestcomp,norderbestcomp,\
                                 mucomp,muref,plotmcmc,statpow,metmcmc)
-                                    
                                 tlagfk = np.array(tlagfk)
                                 fakelags.append(tlagfk)
                                                     
                             fakelags = np.array(fakelags)
                             mufakelag.append(np.mean(fakelags))
                             fakelagerr.append(np.std(fakelags))
-                                                
+                                                                        
                         if(len(lagS)>0):
-                            
+                                                                                    
                             #Filter over a frequency range
                             lag = lag[freq_lag>=fminb[ln]]
                             lag_e = lag_e[freq_lag>=fminb[ln]]
@@ -2376,17 +2894,25 @@ for kn in range(len(obsidnum)):
                             cohS = cohS[freqS<=fmaxb[ln]]
                             coh_eS = coh_eS[freqS<=fmaxb[ln]]
                             freqS = freqS[freqS<=fmaxb[ln]]
-                                                        
+                            
+                            lagfreqS = lagfreqS[FreqS>=fminb[ln]]
+                            lagfreq_eS = lagfreq_eS[FreqS>=fminb[ln]]
+                            FreqS = FreqS[FreqS>=fminb[ln]]
+                            lagfreqS = lagfreqS[FreqS<=fmaxb[ln]]
+                            lagfreq_eS = lagfreq_eS[FreqS<=fmaxb[ln]]
+                            FreqS = FreqS[FreqS<=fmaxb[ln]]
+
                             #Remove NANs                                        
                             arrayslag =\
                             np.transpose(np.column_stack((lagS,lag_eS,\
                             cohS,coh_eS,freqS,lag,lagp,lag_e,\
                             lag_ep,freq_lag)))
+                                
                             arrayslag = remove_nans_lags(arrayslag)
                             lagS,lag_eS,cohS,coh_eS,freqS,lag,\
                             lagp,lag_e,lag_ep,\
                             freq_lag = arrayslag
-                                                                                                                                                                                                        
+                                                                                                                                                                                                                                    
                         residlag =\
                         (lagS - lag)/(np.sqrt(lag_eS**2)+np.sqrt(lag_e**2))
                         residerr = np.ones(len(residlag))
@@ -2406,16 +2932,15 @@ for kn in range(len(obsidnum)):
                             mlagerr.append(np.nan)
     
                         if(len(lagS)>0):
-                                                                                                        
+                                                                                                                                    
                             #Phase wrapping (stingray)
                             for pq in range(len(lagS)):
-                                
-                                #Shift by pi 
-                                sigthresh = 1.2
+                                                                
+                                sigthresh = 1.0
                                 ediff =\
                                 np.sqrt(lag_ep[pq]**2 + lag_eS[pq]**2)
                                 diff = (lagp[pq] - lagS[pq])/ediff 
-                                niter = 5
+                                niter = 3
                                 kiter = 0
                                                 
                                 while(abs(diff)>sigthresh):
@@ -2432,12 +2957,58 @@ for kn in range(len(obsidnum)):
                                     
                                     if(kiter>niter or abs(diff)<sigthresh):
                                         break
-                                                            
+                                                        
                             tlagS = lagS/(2.0*np.pi*freqS)
                             tlag_eS = lag_eS/(2.0*np.pi*freqS)
                             tlag = lagp/(2.0*np.pi*freq_lag)
                             tlag_e = lag_ep/(2.0*np.pi*freq_lag)
-                                                                                    
+                            
+                            if(plotlagfreq=="True"):
+                                
+                                fnamesave = "lag_freq_" + str(ObsId) + ".dat"
+                                Z = np.column_stack((freqS,tlagS,tlag_eS))
+                                np.savetxt(fnamesave,Z,fmt='%s',delimiter='  ')
+                                                                                   
+                                path = loc + "/" + storagedir + "/"
+                                fsavefile = "lags_" + str(obsidnum[kn]) +\
+                                ".pdf"
+                                                                                                                                                                                                    
+                                fig = plt.figure(figsize=(14,7))
+                                                    
+                                plt.title("Lag frequency spectrum [" +\
+                                          str(srcname) + "]",fontsize=14)
+                                                            
+                                plt.errorbar(FreqS,lagfreqS/ks,\
+                                yerr=lagfreq_eS/ks,markersize=4,\
+                                marker='o',linestyle='dotted',\
+                                label="Lag frequency spectrum",\
+                                color='green')
+                                plt.xscale("log")
+                            
+                                # plt.errorbar(freqS,tlagS/ks,\
+                                # yerr=tlag_eS/ks,markersize=4,\
+                                # marker='o',linestyle='dotted',\
+                                # label="Lag frequency spectrum")
+                                # plt.xscale("log")
+                                    
+                                plt.errorbar(freq_lag,tlag/ks,\
+                                yerr=tlag_e/ks,markersize=4,\
+                                marker='o',linestyle='dotted',\
+                                label="Lag frequency spectrum: Stingray")
+                    
+                                plt.tick_params(axis='both',\
+                                which='major',labelsize=14)
+                        
+                                plt.xlabel("Frequency [Hz]",\
+                                           fontsize=14)
+                                plt.ylabel("Time lag [ks]",fontsize=14)
+                                plt.legend(loc="best")
+                                plt.xscale("log")
+                                
+                                plt.savefig(path+fsavefile,dpi=100)
+
+                                plt.show()
+                                                                                                                
                             mean_fbS = np.mean(freqS) 
                             mean_lagS = np.median(tlagS)
                             mean_lagSerr =\
@@ -2462,17 +3033,12 @@ for kn in range(len(obsidnum)):
             dcov = np.array(dcov)
             energiesref = np.array(energiesref)
             denergiesref = np.array(denergiesref)
-                                                                        
+
             mufakelag = np.array(mufakelag)
             fakelagerr = np.array(fakelagerr)
             confint1 = mufakelag - siglag*(0.5*fakelagerr)
             confint2 = mufakelag + siglag*(0.5*fakelagerr)
-                              
-            if(plotlags=="True"):
-                fnamesave = "lag_energy_" + str(ObsId) + ".dat"
-                Z = np.column_stack((enlag,denlag,mlag/ks,mlagerr/ks))
-                np.savetxt(fnamesave,Z,fmt='%s',delimiter='  ')
-    
+                                  
             lab1 = "Frequency band: (" + str(fminb[ln]) + "-" +\
                    str(fmaxb[ln]) + ") Hz, Instrument: " +\
                    str("EPIC-pn")
@@ -2544,7 +3110,7 @@ for kn in range(len(obsidnum)):
                 " date_obs=" + str(dmobs) + " time_obs=" + str(tmobs) +\
                 " date_end=" + str(dmend) + " time_end=" + str(tmend) +\
                 " ra_obj=" + str(raobj) + " dec_obj=" + str(decobj) +\
-                " equinox=2000.0 hduclas2=TOTAL chantype=PI clobber=yes"
+                " equinox=2000.0 hdhp3las2=TOTAL chantype=PI clobber=yes"
                 os.system(comm_unfold)
                     
                 #Group spectrum using ftgrouppha
@@ -2562,11 +3128,10 @@ for kn in range(len(obsidnum)):
                 if(plotlags=="True"):
                                         
                     if(ln==0):
-                        fig = plt.figure(figsize=(8,6))
-                        
+                        fig = plt.figure(figsize=(14,7))
                     subplt = int(str(len(fminb)) + '1' + str(ln+1))
-                    
                     ax1 = fig.add_subplot(subplt)
+                    
                     enlag = np.array(enlag)
                     mlagS = np.array(mlagS)
                     mlag = np.array(mlag)
@@ -2576,17 +3141,20 @@ for kn in range(len(obsidnum)):
                     mufakelag = np.array(mufakelag)
                     fakelagerr = np.array(fakelagerr)
                                                                                                     
-                    confint1 = mufakelag - 3*0.5*fakelagerr
-                    confint2 = mufakelag + 3*0.5*fakelagerr
+                    confint1 = mufakelag - 0.5*fakelagerr
+                    confint2 = mufakelag + 0.5*fakelagerr
                     
                     lab1 = "Frequency band: (" + str(fminb[ln]) + "-" +\
                     str(fmaxb[ln]) + ") Hz, Instrument: " +\
                     str(labinst[qinstr])
                          
-                    fname_save = "lag_energy_obsid_" + str(ObsId) + ".png"
+                    fnamesave = "lag_energy_obsid_" + str(ObsId) + ".pdf"
                     ylim1 = (np.min(mlagS)-np.std(mlagS))/ks
                     ylim2 = (np.max(mlagS)+np.std(mlagS))/ks
-                    fnamesave = "lag_energy" + str(ln+1) + ".dat"
+                    
+                    path = loc + "/" + storagedir + "/"
+                    fsavefile = "lag_energy_" + str(obsidnum[kn]) +\
+                    ".pdf"
                     
                     Z = np.column_stack((enlag,denlag,mlag/ks,mlagerr/ks))
                     np.savetxt(fnamesave,Z,fmt='%s',delimiter='  ')
@@ -2595,39 +3163,40 @@ for kn in range(len(obsidnum)):
                     if(ln==0):
                         ax1.set_title("Lag-energy spectrum " +\
                         str(srcname) + ":" +\
-                        " ObsID " + str(ObsId),fontsize=18)
+                        " ObsID " + str(ObsId),fontsize=14)
                                         
                     ax1.errorbar(enlag,mlagS/ks,xerr=abs(denlag),\
-                                 yerr=mlagerrS/ks,\
+                    yerr=mlagerrS/ks,\
                     fmt=col[qinstr],alpha=0.5,label=lab1,\
-                    markersize=8,marker='o',linestyle='dotted')
-                    
-                    # ax1.errorbar(enlag,mlag/ks,\
-                    #              xerr=abs(denlag),yerr=mlagerr/ks,\
-                    # fmt='k.',alpha=1.0,label="Stingray",\
-                    # markersize=8,marker='o',linestyle='dotted')
+                    markersize=4,marker='o',linestyle='dotted')
                         
-                    ax1.tick_params(axis='both', which='major',labelsize=18)
+                    ax1.errorbar(enlag,mlag/ks,\
+                                 xerr=abs(denlag),yerr=mlagerr/ks,\
+                    fmt='k.',alpha=1.0,label="Stingray",\
+                    markersize=4,marker='o',linestyle='dotted')
+                        
+                    ax1.tick_params(axis='both', which='major',labelsize=14)
                     ax1.set_xscale("log")
                     ax1.get_xaxis().\
                     set_major_formatter(matplotlib.ticker.ScalarFormatter())
                     ax1.get_xaxis().get_major_formatter().labelOnlyBase =\
                     False  
                     ax1.set_xticks([0.3, 0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0])
-    
+                    plt.savefig(path+fsavefile,dpi=100)
+                    plt.ylim(-6,6)
+
                     if(runmcmc=="True"):
                                                                                                                 
                         ax1.plot(enlag,mufakelag/ks,'k--')
                         ax1.fill_between(enlag,confint1/ks,confint2/ks,\
                         alpha=0.25,\
-                        label=r"1$\sigma$ confidence level [from MCMC]")
+                        label=r"3$\sigma$ confidence level [from MCMC]")
                         ax1.legend(loc="best",shadow=False,framealpha=0.2)
                                    
                     if(qinstr==0):
-                        ax1.set_ylabel("Time lag [ks]",fontsize=18)
+                        ax1.set_ylabel("Time lag [ks]",fontsize=14)
                         
-                    ax1.set_xlabel("Energy [keV]",fontsize=18)
-                    plt.savefig("lag_espec_" + str(ObsId) + ".png", dpi=100)
+                    ax1.set_xlabel("Energy [keV]",fontsize=14)
                     plt.subplots_adjust(hspace=0)
         plt.show()
         
