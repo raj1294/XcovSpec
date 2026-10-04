@@ -119,7 +119,7 @@ obsidkey = "0*"
 ctref = 0
 stringdet = []
 stringdet.append("mkdir PSFs/")
-stringdet.append("mkdir lags/")
+stringdet.append("mkdir qpo_search/")
 stringdet.append("mkdir pulsation_search/")
 for ObsId in sorted(glob.glob(obsidkey)):    
     ctr = 1

@@ -11,7 +11,7 @@ ks = 1000
 loc = os.getcwd() + "/"
 
 # ObsID(s)
-obsid = "0*"
+obsidkey = "0*"
 
 #Arguments to code
 def arguments():
@@ -121,7 +121,7 @@ addflag = args['add_flag']
 #Separation between target source location and ULX location (in degrees) 
 srcradius = args['sourceradius'] #source extraction region size (in degrees)
 #LC bin time (for cov spec)
-bintimecov = args['binning_time_cov'] 
+bintimecov = args['binning_time_cov']
 #Set to frame time (for pulsations or QPOs)
 bintimepulse = args['binning_time_qpo']
 #Threshold exposure time
@@ -148,18 +148,16 @@ pirefmax = Emax*1000
 septhresh = 0.04 #Threshold separation
 dsep = 1e-5 #Adaptive separation step
 
-storagedir = "lags/"
+storagedir = "qpo_search/"
 pulsations_dir = "pulsation_search/"
 
 stringcov,stringpulse = [[],[]]
 
-for ObsId in sorted(glob.glob(obsid+"*")):
-    
-    ObsId = ObsId.split("/")[0]
-                                                                                    
+for ObsId in sorted(glob.glob(obsidkey)):
+                                                                                                    
     ctr = 1
     for evim in sorted(glob.glob(loc + ObsId + "/proc/*EPN*Imaging*.ds")):
-                                                                                                                                
+                                                                                                                                                                
         unfiltfile = "epn_obs" + str(ctr) + ".fits"
         unfiltfilebkg = "epn_bkg" + str(ctr) + ".fits"
         srcfile = loc + ObsId + "/proc/source_list_epn" + str(ctr) + ".fits" 
@@ -170,7 +168,6 @@ for ObsId in sorted(glob.glob(obsid+"*")):
         unfiltfile
         commv2 = "cp " + evim + " " + loc + ObsId + "/proc/" +\
         unfiltfilebkg
-                
         hdu = fits.open(srcfile)
         tbdata = hdu[1].data
         RA = tbdata['RA']
@@ -180,9 +177,7 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 
         hdutime = fits.open(evim)
         telapse = hdutime[1].header['ONTIME']
-                                                                
-        ctr += 1
-                
+                                                                                
         culx = SkyCoord(ra_src,dec_src,unit="deg",frame='icrs')                            
         csrc = SkyCoord(RA,DEC,unit="deg",frame="icrs")
                     
@@ -190,47 +185,42 @@ for ObsId in sorted(glob.glob(obsid+"*")):
         dec = csrc.dec.degree   
         separation = culx.separation(csrc)
         sepdeg = separation.deg
-                                                                    
+        
         ranew = ra[sepdeg<=septhresh]
         decnew = dec[sepdeg<=septhresh]
         ctsnew = cts[sepdeg<=septhresh]
         sigmanew = sigma[sepdeg<=septhresh]
         sepdegnew = sepdeg[sepdeg<=septhresh]
         
+        #Sort detections by angular separation with target
+        ranew,decnew,ctsnew,sigmanew,sepdegnew =\
+        list(ranew),list(decnew),list(ctsnew),list(sigmanew),list(sepdegnew)
+        
+        sepdegnew,ranew,decnew,ctsnew,sigmanew =\
+        zip(*sorted(zip(sepdegnew,ranew,decnew,ctsnew,sigmanew)))
+        sepdegnew = np.array(sepdegnew)
+        ranew = np.array(ranew)
+        decnew = np.array(decnew)
+        ctsnew = np.array(ctsnew)
+        sigmanew = np.array(sigmanew)
+                                
         bkgrate = "rateepn_obs" + str(srcfile[-6]) + ".fits"
         gtifile = "gtiepn_obs" + str(srcfile[-6]) + ".fits"
         unfiltfileclean = "epn_obs" + str(srcfile[-6]) + ".fits"
         unfiltfilecleanbkg = "epn_bkg" + str(srcfile[-6]) + ".fits"
         bkgrate_new = "rateepn_obs" + ObsId + str(srcfile[-6]) +\
                       ".fits"
-                                                                                                                                
-        if(len(ranew)>1):
-                            
-            while(True):
+                 
+        ctr += 1
                 
-                ranew = ranew[sepdegnew<=septhresh]
-                decnew = decnew[sepdegnew<=septhresh]
-                ctsnew = ctsnew[sepdegnew<=septhresh]
-                sigmanew = sigmanew[sepdegnew<=septhresh]
-                sepdegnew = sepdegnew[sepdegnew<=septhresh]
-                septhresh -= dsep
-                
-                if(septhresh<0):
-                    
-                    dsep *= 0.1
-                    break
-                
-                if(len(ranew)==1):
-                    break
-        
-        if(len(ranew)==1  and telapse>tthresh):
-                                                        
+        if(telapse>tthresh and len(ranew)>=1):
+                                  
             radet = ranew[0]
             decdet = decnew[0]
             ctsdet = ctsnew[0]
             sigdet= sigmanew[0]
-            sepdet = sepdeg[0]
-            
+            sepdet = sepdegnew[0]
+                                                            
             stringcov.append(commv1)
             stringcov.append(commv2)
             stringpulse.append(commv1)
@@ -316,7 +306,6 @@ for ObsId in sorted(glob.glob(obsid+"*")):
             filtevrefst    
             
             stringpulse.append(commfullband)
-            
             stringcov.append(commfullband)
             stringcov.append("")
             
@@ -324,15 +313,11 @@ for ObsId in sorted(glob.glob(obsid+"*")):
             
             #Comparison band LCs
             for k in range(len(energies)-1):
+                
                                     
                 PIMIN = str(int(pimin[k]))
                 PIMAX = str(int(pimax[k]))
-                
-                pirefmin1 = str(int(pirefmin))
-                pirefmax1 = PIMIN
-                pirefmin2 = PIMAX
-                pirefmax2 = str(int(pirefmax))
-                                                                                                                            
+                                                                                                                                                                                            
                 filtlcref = "epn_src_obs" + ObsId + "_" +\
                             str(srcfile[-6]) +\
                             "_en" + str(k+1) + "_ref.lc"
@@ -348,38 +333,52 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 filtevref = "epn_src_obs" + ObsId + "_" +\
                             str(srcfile[-6]) +\
                             "_en" + str(k+1) + "_ref.fits"
-                                        
-                #Subtract channel of interest
-                if(k!=0 and k!=len(energies)-2):
-                    
-                    strcommadd = "PI in [" + str(pirefmin1) + ":" +\
-                                 str(pirefmax2) + "]" +\
-                                 " && " +\
-                                 "(!PI in [" + str(int(pimin[k])) +\
-                                 ":" + str(int(pimax[k])) + "])"
-                    
-                if(k==0):
-                    
-                    strcommadd = "(PI in [" + str(pirefmin2) +\
-                    ":" + str(pirefmax2) + "])"
-
-                if(k==len(energies)-2):
-                    
-                    strcommadd = "(PI in [" + str(pirefmin1) +\
-                    ":" + str(pirefmax1) + "])"
+                                                                                
+                strcommaddcomp = "PI in [" + str(int(PIMIN)) + ":" +\
+                str(int(PIMAX)) + "]" 
+                strcommaddref = ''
                 
+                if(int(PIMIN)<int(pirefmin) and\
+                   int(PIMAX)<int(pirefmin)):
+                    
+                    strcommaddref = "PI in [" + str(pirefmin) + ":" +\
+                    str(pirefmax) + "]"
+
+                if(int(PIMIN)>int(pirefmin) and\
+                   int(PIMAX)>int(pirefmax)):
+                                            
+                    strcommaddref = "PI in [" + str(pirefmin) + ":" +\
+                    str(pirefmax) + "]"
+
+                if(int(PIMIN)>int(pirefmin) and\
+                   int(PIMAX)<int(pirefmax)):
+                    
+                    strcommaddref = "PI in [" + str(pirefmin) + ":" +\
+                    str(pirefmax) + "]" + " && " +\
+                    "(!PI in [" + str(int(pirefmin)) +\
+                    ":" + str(int(PIMIN)) + "]) && " +\
+                    "(!PI in [" + str(int(PIMAX)) +\
+                    ":" + str(int(pirefmax)) + "])"
+                                                                                                                    
+                if(int(PIMIN)<int(pirefmin) and\
+                   int(PIMAX)>int(pirefmin)):
+                    
+                    strcommaddref = "PI in [" + str(pirefmin) + ":" +\
+                    str(pirefmax) + "] && !PI in [" +\
+                    str(int(pirefmin)) + ":" + str(int(PIMAX)) + "]"
+                                                                        
                 #Filtered reference-band light-curve
                 commrefbandlc = "evselect table=" + unfiltfileclean +\
                          " expression='#XMMEA_EP && (FLAG==0)" +\
                          " && (PATTERN<=4) && " +\
-                         str(strcommadd) + " && " +\
+                         str(strcommaddref) + " && " +\
                          "(RA,DEC) in CIRCLE(" + str(radet) + "," +\
                          str(decdet) + "," + str(srcradius) + ")'" +\
                          " rateset=Y rateset=" +\
                          filtlcref + " maketimecolumn=Y timebinsize=" +\
                          str(bintimecov) + " makeratecolumn=Y"     
                 stringcov.append(commrefbandlc)
-
+                
                 #Filtered reference-band event file
                 newfiltev_ref = "epn_net_obs_" + ObsId + "_" +\
                               str(srcfile[-6]) +\
@@ -388,7 +387,7 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 commrefband = "evselect table=" + unfiltfileclean +\
                               " expression='#XMMEA_EP && (FLAG==0)" +\
                               " && (PATTERN<=4) && " +\
-                              str(strcommadd) + " && " +\
+                              str(strcommaddref) + " && " +\
                            "(RA,DEC) in CIRCLE(" + str(radet) + "," +\
                            str(decdet) + "," + str(srcradius) +\
                            ")' withfilteredset=Y filteredset=" +\
@@ -414,7 +413,7 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                                 commbackrefev =\
                                 "evselect table=" + unfiltfileclean +\
                                 " expression='#XMMEA_EP && (FLAG==0)" +\
-                                " && (PATTERN<=4) && " + str(strcommadd) +\
+                                " && (PATTERN<=4) && " + str(strcommaddref) +\
                                 " && (RA,DEC) in CIRCLE(" + str(raback) +\
                                 "," + str(decback) + "," +\
                                 str(srcradius) +\
@@ -427,7 +426,7 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                                 unfiltfileclean +\
                                 " expression='#XMMEA_EP && (FLAG==0)" +\
                                 " && (PATTERN<=4) && " +\
-                                str(strcommadd) +\
+                                str(strcommaddref) +\
                                 " && (RA,DEC) in CIRCLE(" + str(raback) +\
                                 "," +\
                                 str(decback) + "," + str(srcradius) +\
@@ -512,12 +511,16 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                         newfiltev = "epn_net_obs_" + str(srcfile[-6]) +\
                                     "_" + ObsId + "_ref.fits"                         
                         commfullev = "evselect table=" + unfiltfile +\
-                                     " withfilteredset=Y filteredset=" +\
-                                     filtev +\
+                        " withfilteredset=Y filteredset=" +\
+                        filtev +\
                         " expression='#XMMEA_EP" +\
                         " && (PATTERN<=4) && (PI in [300:12000]) && " +\
                         "(RA,DEC) in CIRCLE(" + str(radet) + "," +\
                         str(decdet) + "," + str(srcradius) + ")'"
+                        
+                        stringpulse.append(commsrclc)
+                        stringpulse.append(commbkglc)
+                        stringpulse.append(commfullev)
                                                 
                     
                     if(addflag=="True"):
@@ -548,8 +551,8 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                                    str(bintimepulse) + " makeratecolumn=Y"  
                 
                         #Filtered event file
-                        filtev = "epn_src_obs" + ObsId + "_" +\
-                                 str(srcfile[-6]) + ".fits"
+                        filtev = "epn_src_obs_" + ObsId + "_" +\
+                                 "ref.fits"
                         newfiltev = "epn_net_obs_" + str(srcfile[-6]) +\
                                     "_" + ObsId + "_ref.fits"                         
                         commfullev = "evselect table=" + unfiltfile +\
@@ -560,42 +563,42 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                         "(RA,DEC) in CIRCLE(" + str(radet) + "," +\
                         str(decdet) + "," + str(srcradius) + ")'"
                         
-                    stringpulse.append(commsrclc)
-                    stringpulse.append(commbkglc)
-                    stringpulse.append(commfullev)
+                        stringpulse.append(commsrclc)
+                        stringpulse.append(commbkglc)
+                        stringpulse.append(commfullev)
                     
                     if(bkgsubepiclc=="False"):
                                                     
                         stringpulse.append("mv " + filtlcrefst +\
-                        " ../../" + pulsations_dir + filtlcrefst)
+                        " ../../" + pulsations_dir + "/" + filtlcrefst)
                         stringpulse.append("mv " + filtlcbkgrefst +\
-                        " ../../" + pulsations_dir + filtlcbkgrefst)
+                        " ../../" + pulsations_dir + "/" + filtlcbkgrefst)
                         stringpulse.append("mv " + filtev +\
-                        " ../../" + pulsations_dir + newfiltev)
+                        " ../../" + pulsations_dir + "/" + newfiltev)
 
                     if(bkgsubepiclc=="True"):
                                                 
                         stringpulse.append("mv " + filtlcrefst +\
-                        " ../../" + pulsations_dir + newfiltlcrefst)
+                        " ../../" + pulsations_dir + "/" + newfiltlcrefst)
                         stringpulse.append("mv " + filtlcbkgrefst +\
-                        " ../../" + pulsations_dir + filtlcbkgrefst)
-                        # stringpulse.append("mv " + filtevrefst +\
-                        # " ../../" + pulsations_dir + newfiltevrefst)
+                        " ../../" + pulsations_dir + "/" + filtlcbkgrefst)
+                        stringpulse.append("mv " + filtevrefst +\
+                        " ../../" + pulsations_dir + "/" + newfiltevrefst)
 
                 #Filtered comparison-band lightcurve
                 srclc_comp = "epn_src_obs" + ObsId + "_" +\
                              str(srcfile[-6]) +\
                              "_en" + str(k+1) + "_comp.lc"
+                             
                 commfiltlccomp = "evselect table=" + unfiltfileclean +\
-                               " expression='#XMMEA_EP && (FLAG==0)" +\
-                          " && (PATTERN<=4) && (PI in [" + PIMIN +\
-                          ":" + PIMAX + "]) && " +\
-                          "(RA,DEC) in CIRCLE(" + str(radet) + "," +\
-                          str(decdet) + "," + str(srcradius) + ")'" +\
-                          " rateset=Y rateset=" +\
-                          srclc_comp +\
-                          " maketimecolumn=Y timebinsize=" +\
-                          str(bintimecov) + " makeratecolumn=Y"
+                " expression='#XMMEA_EP && (FLAG==0)" +\
+                " && (PATTERN<=4) && " + str(strcommaddcomp) +\
+                " && " + "(RA,DEC) in CIRCLE(" + str(radet) + "," +\
+                str(decdet) + "," + str(srcradius) + ")'" +\
+                " rateset=Y rateset=" + srclc_comp +\
+                " maketimecolumn=Y timebinsize=" +\
+                str(bintimecov) + " makeratecolumn=Y"
+                         
                 stringcov.append(commfiltlccomp)
 
                 #Filtered comparison-band event file
@@ -609,9 +612,8 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                           " withfilteredset=Y filteredset=" +\
                           filtev_comp +\
                           " expression='#XMMEA_EP && (FLAG==0)" +\
-                          " && (PATTERN<=4) && (PI in [" + PIMIN +\
-                          ":" + PIMAX + "]) && " +\
-                          "(RA,DEC) in CIRCLE(" + str(radet) + "," +\
+                          " && (PATTERN<=4) && " + str(strcommaddcomp) +\
+                          "&& (RA,DEC) in CIRCLE(" + str(radet) + "," +\
                           str(decdet) + "," + str(srcradius) + ")'"
                 stringcov.append(commfiltevcomp)
                 
@@ -623,11 +625,9 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 commbkgevcomp =\
                 "evselect table=" + unfiltfileclean +\
                 " expression='#XMMEA_EP && (FLAG==0)" +\
-                " && (PATTERN<=4) && " + "(PI in [" + PIMIN +\
-                ":" + PIMAX + "]) && " +\
-                " (RA,DEC) in CIRCLE(" + str(raback) +\
-                "," + str(decback) + "," +\
-                str(srcradius) +\
+                " && (PATTERN<=4) && " + str(strcommaddcomp) +\
+                " && (RA,DEC) in CIRCLE(" + str(raback) +\
+                "," + str(decback) + "," + str(srcradius) +\
                 ")' withfilteredset=Y filteredset=" +\
                 filtbkgcomp
                 stringcov.append(commbkgevcomp)
@@ -637,14 +637,13 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                                  str(srcfile[-6]) + "_en" +\
                                  str(k+1) + "_comp.lc"               
                 commbkgcomplc = "evselect table=" + unfiltfileclean +\
-                         " expression='#XMMEA_EP && (FLAG==0)" +\
-                         " && (PATTERN<=4) && (PI in [" + PIMIN +\
-                         ":" + PIMAX + "]) && " +\
-                         "(RA,DEC) in CIRCLE(" + str(raback) + "," +\
-                         str(decback) + "," + str(srcradius) + ")'" +\
-                         " rateset=Y rateset=" + filtlcbkg_comp +\
-                         " maketimecolumn=Y timebinsize=" +\
-                         str(bintimecov) + " makeratecolumn=Y"
+                " expression='#XMMEA_EP && (FLAG==0)" +\
+                " && (PATTERN<=4) && " + str(strcommaddcomp) +\
+                " && " + "(RA,DEC) in CIRCLE(" + str(raback) +\
+                "," + str(decback) + "," + str(srcradius) + ")'" +\
+                " rateset=Y rateset=" + filtlcbkg_comp +\
+                " maketimecolumn=Y timebinsize=" +\
+                str(bintimecov) + " makeratecolumn=Y"
                 stringcov.append(commbkgcomplc)
                 
                 #Subtract background (comparison-band)
@@ -678,12 +677,12 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                 if(bkgsubepiclc=="True"):
                                         
                     commbkgepiclc = "epiclccorr srctslist=" + srclc_comp +\
-                              " eventlist=" +\
-                              unfiltfileclean + " outset=" +\
-                              newlc_comp +\
-                              " bkgtslist=" + filtlcbkg_comp +\
-                              " withbkgset=yes" +\
-                              " applyabsolutecorrections=yes"
+                                    " eventlist=" +\
+                                    unfiltfileclean + " outset=" +\
+                                    newlc_comp +\
+                                    " bkgtslist=" + filtlcbkg_comp +\
+                                    " withbkgset=yes" +\
+                                    " applyabsolutecorrections=yes"
                     stringcov.append(commbkgepiclc)
                                                                 
                     stringcov.append("mv " + newlcref +\
@@ -698,7 +697,6 @@ for ObsId in sorted(glob.glob(obsid+"*")):
                     stringcov.append("mv " + newlcbkgcomp +\
                                      " ../../" + storagedir + "/" +\
                                      newlcbkgcomp)
-
                     stringcov.append("")
 
             
@@ -707,8 +705,9 @@ for ObsId in sorted(glob.glob(obsid+"*")):
             stringcov.append("")
             
             stringpulse.append("cd ../../")
+            stringpulse.append("rm -rf " + ObsId)
             stringpulse.append("")
-                    
+    
 np.savetxt("filter_lc_cov_epn.sh",stringcov,fmt='%s',delimiter='   ')
 os.system("chmod u+x filter_lc_cov_epn.sh")
 os.system("./filter_lc_cov_epn.sh")
