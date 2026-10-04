@@ -401,32 +401,31 @@ def reverb_mod_envelope(pars,freq):
     """
         
     w1,w2,tauw,taud,t0,alpha,amp,beta = pars
-                
-    jnum = complex(0,1)
     
     #Reverberation response
-    gammainc = np.zeros(len(freq),dtype=complex)
-    
-    for gz in range(len(gammainc)):
-        
-        s = (1.0 /taud) + 1j*(2.0*np.pi*freq[gz])
-        z = t0*s
-        gammainc[gz] = complex(mpmath.gammainc(1-alpha,z))
+    jnum = complex(0,1)    
+    # gammainc = np.zeros(len(freq),dtype=complex)
+    # for gz in range(len(gammainc)):
+    #     s = (1.0 /taud) + 1j*(2.0*np.pi*freq[gz])
+    #     z = t0*s
+    #     gammainc[gz] = complex(mpmath.gammainc(1-alpha,z))
         
     Treverb1 = w1*np.exp(-jnum*np.pi*freq*tauw)*np.sinc(np.pi*freq*tauw)
-    Treverb2 = w2*(t0**alpha)*(np.exp(t0/taud))*\
-    (1/taud + jnum*2*np.pi*freq)**(alpha-1)*\
-    special.gamma(1-alpha)*gammainc
+    # Treverb2 = w2*(t0**alpha)*(np.exp(t0/taud))*\
+    # (1/taud + jnum*2*np.pi*freq)**(alpha-1)*\
+    # (special.gamma(1-alpha))*gammainc
     
     #Propagation response
     Tprop = np.exp(-jnum*2*np.pi*amp*freq**(1-beta))
     
     #Total response
-    Treverb = Treverb1 + Treverb2
-    Ttotal = Treverb*Tprop
+    Treverb = Treverb1
+    # Treverb = Treverb1 + Treverb2
+    # Ttotal = Treverb*Tprop
             
-    phase_lag_mod = np.atan2(np.imag(Ttotal),1+np.imag(Ttotal))
-    time_lag_mod = -phase_lag_mod/(2*np.pi*freq)
+    phase_lag_mod = np.atan2(np.imag(Treverb),1+np.imag(Treverb))
+    time_lag_mod = amp*((freq/freq[0])**-beta) -\
+    phase_lag_mod/(2*np.pi*freq)
     
     return time_lag_mod
 
@@ -2071,12 +2070,12 @@ plotlags = args['plotlags']
 
 #Group covariance spectrum
 groupscale = args['groupscale']
-storagedir = "lags/"
+storagedir = "qpo_search/"
 
 loc = os.getcwd()
 os.chdir(loc + "/" + storagedir + "/")
 
-keyobsid = "epn*net*obs*0*_1_*en4*comp*.lc"
+keyobsid = "epn*net*obs*0*_1_*en1*comp*.lc"
 obsidnum = []
 for fobsid in sorted(glob.glob(keyobsid)):
     obsid = fobsid.split(".lc")[0].split("_")[2].split("obs")[1]
@@ -2097,7 +2096,7 @@ plotcov = "False"
 comparecpsd = "False"
 removebt = "False"
 metmcmc = "timelags"
-plotlagfreq = "False"
+plotlagfreq = "True"
 addphasewraps = "True"
 
 for kn in range(len(obsidnum)):  
@@ -2108,7 +2107,7 @@ for kn in range(len(obsidnum)):
         Nenergies += 1  
                     
     keyobs1 = "epn_net_obs*"
-    keyobs2 = "*_1_*en4*ref.lc"
+    keyobs2 = "*_1_*en1*ref.lc"
             
     for tempreflcfile in sorted(glob.glob(keyobs1+str(obsidnum[kn])+keyobs2)):
                                                                                                         
@@ -2455,19 +2454,21 @@ for kn in range(len(obsidnum)):
                                 timecombref = arraysR
                                                     
                         # #Fourier domain filtering
-                        # fminfilt = 1e-6
-                        # fmaxfilt = 1e3
+                        # fminfilt = 1.5e-4
+                        # fmaxfilt = 4e-4
                         # tmaxfilt = fminfilt**-1
                         # dtbinfilt = 0.5*fmaxfilt**-1
                         # tdurfilt = tmaxfilt 
-                        # reflccomb,errreflccomb =\
+                        
+                        # reflccombfilt,errreflccombfilt =\
                         # filteredlc(reflccomb,errreflccomb,fminfilt,fmaxfilt,\
                         #            dtbinfilt,tdurfilt)
-                        # complccomb,errcomplccomb =\
+                        # complccombfilt,errcomplccombfilt =\
                         # filteredlc(complccomb,errcomplccomb,fminfilt,fmaxfilt,\
                         #            dtbinfilt,tdurfilt)
-                        # timecombref = np.linspace(0,tmaxfilt,len(reflccomb))
-                        # bsizeref = timecombref[1]-timecombref[0]
+                        # timecombreffilt =\
+                        # np.linspace(0,tmaxfilt,len(reflccombfilt))
+                        # bsizeref = timecombreffilt[1]-timecombreffilt[0]
                                                          
                         if(plotlc=="True" and ln==0):
                                                                                     
@@ -2481,17 +2482,27 @@ for kn in range(len(obsidnum)):
                             
                             plt.title("XMM-Newton (EPIC-PN) lightcurves: " +\
                                       "Obs ID: " + str(ObsId), fontsize=14)
+                            
+                            # timerefcombfilt =\
+                            # np.arange(0,len(reflccombfilt),1)
+                            # plt.errorbar(timerefcombfilt,reflccombfilt,\
+                            #              yerr=abs(errreflccombfilt),\
+                            #              fmt='r.')
+                            # plt.errorbar(timerefcombfilt,complccombfilt,\
+                            #              yerr=abs(errcomplccombfilt),\
+                            #              label=labelsrccomp,fmt='b.')
+
                             plt.errorbar(timecombref/ks,reflccomb,\
                                          yerr=abs(errreflccomb),fmt='r.')
                             plt.errorbar(timecombref/ks,complccomb,\
                                          yerr=abs(errcomplccomb),\
                                          label=labelsrccomp,fmt='b.')
+                            # plt.plot(timecombref/ks,windowcomb,'m-')
                             plt.tick_params(axis='both', which='major',\
                                             labelsize=14)
                                 
                             if(fillgaps=="True" and fillmethod=="B"):
                                     
-                                plt.plot(timecombref/ks,windowcomb,'m-')                                                            
                                 plt.errorbar(timesimref/ks,refsimlc,\
                                 yerr=errrefsimlc,fmt='k.',\
                                 label="Interpolated: Bootstrapped")
@@ -2887,46 +2898,46 @@ for kn in range(len(obsidnum)):
                         tlagfreqS = lagfreqS/(2.0*np.pi*FreqS)
                         tlagfreq_eS = lagfreq_eS/(2.0*np.pi*FreqS)
                         
-                        # #Remove data points with large errors
-                        # ethresh = 3*ks
-                        # FreqS = FreqS[tlagfreq_eS<ethresh]
-                        # tlagfreqS = tlagfreqS[tlagfreq_eS<ethresh]
-                        # tlagfreq_eS = tlagfreq_eS[tlagfreq_eS<ethresh]
-                        # freq_lag = freq_lag[tlag_e<ethresh]
-                        # tlag = tlag[tlag_e<ethresh]
-                        # tlag_e = tlag_e[tlag_e<ethresh]
-                        # freqS = freqS[tlag_eS<ethresh]
-                        # tlagS = tlagS[tlag_eS<ethresh]
-                        # tlag_eS = tlag_eS[tlag_eS<ethresh]
-                        # FreqS = FreqS[tlagfreq_eS>0]
-                        # tlagfreqS = tlagfreqS[tlagfreq_eS>0]
-                        # tlagfreq_eS = tlagfreq_eS[tlagfreq_eS>0]
-                        # freq_lag = freq_lag[tlag_e>0]
-                        # tlag = tlag[tlag_e>0]
-                        # tlag_e = tlag_e[tlag_e>0]
-                        # freqS = freqS[tlag_eS>0]
-                        # tlagS = tlagS[tlag_eS>0]
-                        # tlag_eS = tlag_eS[tlag_eS>0]
+                        #Remove data points with large errors
+                        ethresh = 3*ks
+                        FreqS = FreqS[tlagfreq_eS<ethresh]
+                        tlagfreqS = tlagfreqS[tlagfreq_eS<ethresh]
+                        tlagfreq_eS = tlagfreq_eS[tlagfreq_eS<ethresh]
+                        freq_lag = freq_lag[tlag_e<ethresh]
+                        tlag = tlag[tlag_e<ethresh]
+                        tlag_e = tlag_e[tlag_e<ethresh]
+                        freqS = freqS[tlag_eS<ethresh]
+                        tlagS = tlagS[tlag_eS<ethresh]
+                        tlag_eS = tlag_eS[tlag_eS<ethresh]
+                        FreqS = FreqS[tlagfreq_eS>0]
+                        tlagfreqS = tlagfreqS[tlagfreq_eS>0]
+                        tlagfreq_eS = tlagfreq_eS[tlagfreq_eS>0]
+                        freq_lag = freq_lag[tlag_e>0]
+                        tlag = tlag[tlag_e>0]
+                        tlag_e = tlag_e[tlag_e>0]
+                        freqS = freqS[tlag_eS>0]
+                        tlagS = tlagS[tlag_eS>0]
+                        tlag_eS = tlag_eS[tlag_eS>0]
                                                                                             
                         #######################################################
                         
                         # #Impulse response: Lag-freq model (4-parameter fit)
-                        # w1init = 0.0
-                        # tauwinit = 2*ks
-                        # ampinit = 0.2
-                        # betainit = 1.0                                                
+                        # w1init = 1.15
+                        # tauwinit = 2.5*ks
+                        # ampinit = -2.5
+                        # betainit = 0.85                                               
                         # parsinitnew = [w1init,tauwinit,ampinit,betainit]
                                                 
                         # fitobjnew = kmpfit.Fitter(\
                         # residuals=residuals_reverb_mod_imp,\
-                        # data=(FreqS,lagfreqS,lagfreq_eS),maxiter=10000,\
-                        # ftol=1e-5)
+                        # data=(FreqS,lagfreqS,lagfreq_eS),maxiter=4000)
                                                     
                         # fitobjnew.parinfo =\
                         #  [{'limits': (-100,500), 'step': 1},\
-                        #  {'limits': (0.1*ks, 20*ks), 'step': 0.5*ks},\
-                        #  {'limits': (-100, 100), 'step': 0.1},\
-                        #  {'limits': (1.0, 5.0), 'step': 0.1}]
+                        #  {'limits': (0.1*ks, 20*ks), 'step': 0.2*ks},\
+                        #  {'limits': (-100, 100), 'step': 1},\
+                        #  {'limits': (1.0, 5.0), 'step': 0.01}]
+                             
                         # fitobjnew.fit(params0=parsinitnew)
                         
                         # # #Reduced chi-squared
@@ -2947,20 +2958,27 @@ for kn in range(len(obsidnum)):
                         # Nfreqmod = 4000
                         # freqmod = np.linspace(np.min(FreqS),\
                         # np.max(FreqS),Nfreqmod)
-                        # lagfreqmod = reverb_mod_imp(fitobjnew.params,freqmod)
+                        # lagfreqmod = reverb_mod_imp(parsinitnew,\
+                        #                             freqmod)
                         
                         #######################################################
                         #Impulse response: Lag-freq model (8-parameter fit)
                         
                         #Initialise fitting engine
-                        w1init = 1.0
-                        tauwinit = 3*ks
-                        ampinit = 3.0
+                        # w1init = 4.8893405711724185
+                        # tauwinit = 1495.0795348704378
+                        # ampinit = 2.926162692661183
+                        # betainit = -0.47257946576343113
+                        
+                        w1init = -5
+                        tauwinit = 5*ks
+                        ampinit = -3
                         betainit = 1.0
-                        w2init = 5e-4
-                        taudinit = 3*ks
-                        t0init = 4*ks
-                        alphainit = 0.7
+
+                        w2init = 0.74
+                        t0init = 1*ks
+                        taudinit = 5*ks
+                        alphainit = 0.1
                         
                         parsinitnew =\
                         [w1init,w2init,tauwinit,taudinit,t0init,\
@@ -2969,8 +2987,7 @@ for kn in range(len(obsidnum)):
                         #Initialise fitting engine
                         fitobjnew = kmpfit.Fitter(\
                         residuals=residuals_reverb_mod_envelope,\
-                        data=(FreqS,tlagfreqS,tlagfreq_eS),maxiter=5000,\
-                        ftol=1e-5)
+                        data=(freqS,tlagS,tlag_eS))
                         
                         # mask = np.ones(len(FreqS),dtype=bool)
                         # mask[[]] = False
@@ -2984,15 +3001,16 @@ for kn in range(len(obsidnum)):
                         # tlag = tlag[maskst]
                         # tlag_e = tlag_e[maskst]
 
-                        fitobjnew.parinfo =\
-                         [{'limits': (-100,500), 'step': 0.1},\
-                         {'limits': (-100,100), 'step': 0.1},\
-                         {'limits': (0.1*ks, 20*ks), 'step': 0.5*ks},\
-                         {'limits': (0*ks, 20*ks), 'step': 0.5*ks},\
-                         {'limits': (0*ks, telapse), 'step': 5*ks},\
-                         {'limits': (0.3, 0.99), 'step': 0.02},\
-                         {'limits': (-100, 100), 'step': 0.1},\
-                         {'limits': (0.1, 5.0), 'step': 0.1}]
+                        # fitobjnew.parinfo =\
+                        #  [{'limits': (-100,500), 'step': 1},\
+                        #  {'limits': (0.1*ks, 20*ks), 'step': 0.5*ks},\
+                        #  {'limits': (-100, 100), 'step': 1},\
+                        #  {'limits': (-5, 5), 'step': 0.2},\
+                        #  {'limits': (-100,100), 'step': 1},\
+                        #  {'limits': (0*ks, 20*ks), 'step': 0.5*ks},\
+                        #  {'limits': (0*ks, telapse), 'step': 5*ks},\
+                        #  {'limits': (0.3, 0.99), 'step': 0.02}]
+                        
                         # fitobjnew.fit(params0=parsinitnew)
 
                         # w1best,w2best,tauwbest,taudbest,t0best,alphabest,\
@@ -3009,20 +3027,22 @@ for kn in range(len(obsidnum)):
                         # chi2minnew = fitobjnew.chi2_min
                         # dofminnew = fitobjnew.dof
 
-                        # print(w1best," ± ",w1besterr)
+                        # print(r"$w_{1}$: ",w1best," ± ",w1besterr)
+                        # print(r"$\tau_{w}$: ",tauwbest," ± ",tauwbesterr)
+                        # print("A: ",ampbest, " ± ",ampbesterr)
+                        # print(r"$\beta$",betabest," ± ",betabesterr)
+
                         # print(w2best," ± ",w2besterr)
-                        # print(tauwbest," ± ",tauwbesterr)
                         # print(taudbest," ± ",taudbesterr)
                         # print(t0best," ± ",t0besterr)
                         # print(alphabest," ± ",alphabesterr)
-                        # print(ampbest," ± ",ampbesterr)
-                        # print(betabest," ± ",betabesterr)
                         # print(chi2minnew,dofminnew)
 
-                        Nfreqmod = 4000
-                        freqmod = np.linspace(np.min(FreqS),\
-                        np.max(FreqS),Nfreqmod)
-                        lagfreqmod = reverb_mod_envelope(parsinitnew,freqmod)
+                        # Nfreqmod = 4000
+                        # freqmod = np.linspace(np.min(freqS),\
+                        # np.max(freqS),Nfreqmod)
+                        # lagfreqmod = reverb_mod_envelope(bestfitpars,\
+                        #                                  freqmod)
                                                     
                         #######################################################
                     
@@ -3041,13 +3061,7 @@ for kn in range(len(obsidnum)):
                         mlagerr.append(mean_lagerr)
 
                         if(plotlagfreq=="True"):
-                            
-                            fnamesave =\
-                            "lag_freq_" + str(ObsId) + ".dat"
-                            Z = np.column_stack((freqS,tlagS,tlag_eS))
-                            np.savetxt(fnamesave,Z,fmt='%s',\
-                                       delimiter='  ')
-                                                                                                                                                                                                                                                                               
+                                                                                                                                                                                                                                                                                                           
                             fig, ax = plt.subplots(figsize=(10,7))
                                                 
                             plt.title("Lag frequency spectrum: [" +\
@@ -3055,6 +3069,12 @@ for kn in range(len(obsidnum)):
                             "]",fontsize=18)
                                                                                                             
                             # With window deconvolved
+                            
+                            fnamesave =\
+                            "lag_freq_" + str(ObsId) + ".dat"
+                            Z = np.column_stack((freqS,tlagS/ks,tlag_eS/ks))
+                            np.savetxt(fnamesave,Z,fmt='%s',\
+                            delimiter='  ')
                         
                             # plt.errorbar(FreqS,tlagfreqS/ks,\
                             # yerr=tlagfreq_eS/ks,markersize=4,\
@@ -3065,7 +3085,8 @@ for kn in range(len(obsidnum)):
                             ax.errorbar(freqS,tlagS/ks,\
                             yerr=tlag_eS/ks,markersize=4,\
                             marker='o',linestyle='dotted',\
-                            label="Lag frequency spectrum")
+                            label="Lag frequency spectrum",\
+                            color="blue")
 
                             # plt.plot(freqmod,lagfreqmod/ks,'k-',\
                             #          label="Best-fit impulse response")
@@ -3266,12 +3287,11 @@ for kn in range(len(obsidnum)):
                     ax1.get_xaxis().get_major_formatter().labelOnlyBase =\
                     False  
                     ax1.set_xticks([0.3, 0.5, 1.0, 2.0, 3.0, 5.0, 7.0, 10.0])
-                    ax1.set_ylim(-3,3)
-
+                    # ax1.set_ylim(-3,3)
                     ax1.set_xlabel("Energy [keV]",fontsize=18)
                     plt.subplots_adjust(hspace=0)
                     plt.savefig(path+fsavefile,dpi=200)
-                    plt.show()
+                plt.show()
             
 
     
