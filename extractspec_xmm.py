@@ -117,13 +117,12 @@ tthresh = args['threshold_exp_time']
 #Separation between catalogue ULX position and source detection 
 dsep = 1e-5 #Adaptive separation step
 septhresh = 0.04 
-ctref = 0
 
 dirkey = "0*/proc/source_list*epn*.fits" 
-storagedir = "lags/"
+storagedir = "qpo_search/"
 stringspec = []
 for sourcefile in sorted(glob.glob(loc + dirkey)):
-                                                                
+                                                                        
     hdu = fits.open(sourcefile)
     tbdata = hdu[1].data
     RA = tbdata['RA']
@@ -131,12 +130,14 @@ for sourcefile in sorted(glob.glob(loc + dirkey)):
     telapse = hdu[1].header['ONTIME']
     ObsId = hdu[1].header['OBS_ID']
     detnum = sourcefile[-6]
-                            
+                                
+    ctref = sourcefile.split(".fits")[0].split("/")[-1].split("_")[2].\
+            split("epn")[1]
     culx = SkyCoord(ra_src,dec_src,unit="deg",frame='icrs')                            
     csrc = SkyCoord(RA,DEC,unit="deg",frame="icrs")
     ranew = csrc.ra.degree
     decnew = csrc.dec.degree   
-            
+    
     separation = culx.separation(csrc)
     sepdeg = separation.deg
     ranew = ranew[sepdeg<=septhresh]
@@ -155,14 +156,12 @@ for sourcefile in sorted(glob.glob(loc + dirkey)):
             if(len(ranew)==1):
                 radet = ranew[0]
                 decdet = decnew[0]
-                ctref += 1                                            
                 break
-            
+        
     elif(len(ranew)==1 and telapse>tthresh):
         radet = ranew[0]
         decdet = decnew[0]
-        ctref += 1                                            
-                    
+        
     commmv = "cd " + ObsId + "/proc"
     stringspec.append(commmv)
     
@@ -227,7 +226,7 @@ for sourcefile in sorted(glob.glob(loc + dirkey)):
     specarf = "epn_" + str(ObsId) + "_" + str(detnum) + ".arf"
     groupspec = "epn_spec" + str(detnum) + "_grp.fits" 
     badpixfile = unfiltfileclean
-                  
+                      
     #Filtered event file
     commfiltevref = "evselect table=" + unfiltfileclean +\
               " withfilteredset=Y filteredset=" + filtfile +\
@@ -258,11 +257,14 @@ for sourcefile in sorted(glob.glob(loc + dirkey)):
     stringspec.append(commarf)
                                 
     #Generate background region file
-    imagefile = loc + ObsId + "/proc/epnimage1.fits"
+    imagefile = loc + ObsId + "/proc/epnimage" + str(ctref) + ".fits"    
     
     print("Please specify a background region file and",\
-    "save in proc directory: In order to save it, use the region",\
-    "button located in main the panel")
+    "save in proc directory, name it bkg1.reg: In order to save it",\
+    " use the region button located in main the panel. ",\
+    "Close the window, wait for more to appear. If there are none, the ",\
+    "code will move on.")
+        
     os.system("ds9 " + imagefile + " -scale log -cmap heat")
         
     for bkgfile in glob.glob(loc + ObsId + "/proc/bkg1.reg"):
@@ -387,40 +389,34 @@ np.savetxt("filter_spec.sh",stringspec,fmt='%s',delimiter='   ')
 os.system("chmod u+x filter_spec.sh")
 os.system("./filter_spec.sh")
 
-for sourcefile in sorted(glob.glob(loc + dirkey)):
-
-    #Modify exposure time keywords
-    newspkey = loc + "lags/epn*spec*grp*" + ObsId + ".fits"
-    for newsp in glob.glob(newspkey):
-                
-        newsp = newsp.split("/")[-1]
-        
-        hdulistref = fits.open("lags/" + newsp)
-        header = hdulistref[2].header
-        telapse = header['TELAPSE']
-        obsid = newsp.split(".fits")[0].split("grp_")[1]        
-        vis = newsp.split("_grp")[0].split("_spec")[1]
-        
-        newbkg = "epn_spec" + vis + "_" + str(obsid) + "_bkg.fits"
-        newrsp = "epn_" + obsid + "_" + vis + ".rmf"
-        newarf = "epn_" + obsid + "_" + vis + ".arf"   
-        
-        commkey1 = "fparkey " + newrsp + " " + storagedir +\
-        newsp + "[1] RESPFILE"
-        commkey2 = "fparkey " + newarf + " " + storagedir +\
-        newsp + "[1] ANCRFILE"
-        commkey3 = "fparkey " + newbkg + " " + storagedir +\
-        newsp + "[1] BACKFILE"
-        
-        commkey4 = 'fparkey ' + str(telapse) + " " + storagedir +\
-        newsp + '[1] ' + 'EXPOSURE'
-        
-        commkey5 = 'fparkey ' + str(telapse) + " " + storagedir +\
-        newbkg + '[1] ' + 'EXPOSURE'
-                
-        os.system(commkey1)
-        os.system(commkey2)
-        os.system(commkey3)
-        os.system(commkey4)
-        os.system(commkey5)
+for newsp in glob.glob(loc + "/lags/epn*spec*grp*.fits"):
+    
+    newsp = newsp.split("/")[-1]
+    
+    hdulistref = fits.open("lags/" + newsp)
+    header = hdulistref[2].header
+    telapse = header['TELAPSE']
+    obsid = newsp.split(".fits")[0].split("grp_")[1]        
+    vis = newsp.split("_grp")[0].split("_spec")[1]
+    
+    newbkg = "epn_spec" + vis + "_" + str(obsid) + "_bkg.fits"
+    newrsp = "epn_" + obsid + "_" + vis + ".rmf"
+    newarf = "epn_" + obsid + "_" + vis + ".arf"   
+    
+    commkey1 = "fparkey " + newrsp + ' "' + storagedir +\
+    newsp + '[1]" RESPFILE'
+    commkey2 = "fparkey " + newarf + ' "' + storagedir +\
+    newsp + '[1]" ANCRFILE'
+    commkey3 = "fparkey " + newbkg + ' "' + storagedir +\
+    newsp + '[1]" BACKFILE'
+    commkey4 = "fparkey " + str(telapse) + ' "' + storagedir +\
+    newsp + '[1]" ' + 'EXPOSURE'
+    commkey5 = "fparkey " + str(telapse) + ' "' + storagedir +\
+    newbkg + '[1]" ' + 'EXPOSURE'
+            
+    os.system(commkey1)
+    os.system(commkey2)
+    os.system(commkey3)
+    os.system(commkey4)
+    os.system(commkey5)
 
