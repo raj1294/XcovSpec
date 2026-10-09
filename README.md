@@ -17,7 +17,7 @@ usage: XcovSpec.py [-h] -srcname SOURCENAME -plc PLOTLC -plags PLOTLAGS -ppsd PL
                    SEGMENTLC -fmin FREQMIN -fmax FREQMAX -gbin GEOMBIN -gscale GROUPSCALE -rmcmc RUNMCMC -egrid ENERGY_GRID
                    -gencov COVSPEC -mincts MINIMUM_CTS -minbcts MINIMUM_CTS_BKG -srad SRCRAD -brad BKGRAD -rmflares
                    REMOVE_BKG_FLARES -srcdet SIGTHRESH -dtbinbkg BKG_BIN_TIME -dtbincov BINNING_TIME_COV -aflag ADD_FLAG -obsids
-                   OBSERVATION_IDS [-texp THRESHOLD_EXP_TIME] -dtbinqpo BINNING_TIME_QPO -psearch PULSE_SEARCH -bsub BKG_SUB
+                   OBSERVATION_IDS -texp THRESHOLD_EXP_TIME -dtbinqpo BINNING_TIME_QPO -psearch PULSE_SEARCH -bsub BKG_SUB
                    -stdir STORAGEDIR
 
 Generate covariance spectra, lag-energy spectra plot power-spectral densities and plot light-curves
