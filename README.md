@@ -12,18 +12,20 @@ The tool automatically downloads the required data files from the XMM-Newton arc
 
 In the above case, the source name is "Ark 564", with the specific ObsIDs downloaded (i.e. 0861600101,0861600201), the reference energy band light-curve spanning the 0.3-12.0 keV energy range, with at-least 100 counts grouped for the time averaged spectrum (after subtracting the background), with the time bin size selected to be 100 s (for the pulsations and/or QPO search) and 100 s for the lag-energy spectra and covariance spectra, source and background extraction radius set to 30 arc-seconds, with the background flares not chosen to be excluded and a threshold of at-least 5 ks required to continue with the analysis. Please consult the help file for more detail on the specific command-line arguments.
 
-usage: XcovSpec.py [-h] -srcname SOURCENAME -plc PLOTLC -plags PLOTLAGS -ppsd PLOTPSD -split SPLITSCHEME -statpower STATSPSD -normpower NORMPSD -refemin
-                   REFERENCE_ENERGY_MIN -refemax REFERENCE_ENERGY_MAX -flgaps FILLGAPS -seglc SEGMENTLC -fmin FREQMIN -fmax FREQMAX -gbin GEOMBIN
-                   -gscale GROUPSCALE -rmcmc RUNMCMC -psdmods POWSPECMOD -egrid ENERGY_GRID -gencov COVSPEC -mincts MINIMUM_CTS -minbcts MINIMUM_CTS_BKG
-                   -srad SRCRAD -brad BKGRAD -rmflares REMOVE_BKG_FLARES -srcdet SIGTHRESH -dtbinbkg BKG_BIN_TIME -dtbincov BINNING_TIME_COV -aflag
-                   ADD_FLAG -obsids OBSERVATION_IDS -texp THRESHOLD_EXP_TIME -dtbinqpo BINNING_TIME_QPO -psearch PULSE_SEARCH -bsub BKG_SUB
+usage: XcovSpec.py [-h] -srcname SOURCENAME -plc PLOTLC -plags PLOTLAGS -ppsd PLOTPSD -split SPLITSCHEME -statpower STATSPSD
+                   -normpower NORMPSD -refemin REFERENCE_ENERGY_MIN -refemax REFERENCE_ENERGY_MAX -flgaps FILLGAPS -seglc
+                   SEGMENTLC -fmin FREQMIN -fmax FREQMAX -gbin GEOMBIN -gscale GROUPSCALE -rmcmc RUNMCMC -egrid ENERGY_GRID
+                   -gencov COVSPEC -mincts MINIMUM_CTS -minbcts MINIMUM_CTS_BKG -srad SRCRAD -brad BKGRAD -rmflares
+                   REMOVE_BKG_FLARES -srcdet SIGTHRESH -dtbinbkg BKG_BIN_TIME -dtbincov BINNING_TIME_COV -aflag ADD_FLAG -obsids
+                   OBSERVATION_IDS [-texp THRESHOLD_EXP_TIME] -dtbinqpo BINNING_TIME_QPO -psearch PULSE_SEARCH -bsub BKG_SUB
+                   -stdir STORAGEDIR
 
 Generate covariance spectra, lag-energy spectra plot power-spectral densities and plot light-curves
 
 options:
 
   -h, --help show this help message and exit
-  
+    
   -srcname SOURCENAME, --sourcename SOURCENAME Target Name
   
   -plc PLOTLC, --plotlc PLOTLC Plot LC? [Enter either True or False]
@@ -88,6 +90,8 @@ options:
   -psearch PULSE_SEARCH, --pulse_search PULSE_SEARCH Extract light-curves with DT=DTMIN=73ms?
                         
   -bsub BKG_SUB, --bkg_sub BKG_SUB Use epiclccorr to subtract background?
+
+  -stdir STORAGEDIR, --Source directory location
 
 The following figures show the XMM-Newton light-curve, power spectral density, lag-frequency spectrum and lag-energy spectrum for Ark 564 extracted using this software:
 
