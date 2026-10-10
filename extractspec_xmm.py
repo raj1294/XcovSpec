@@ -84,6 +84,10 @@ def arguments():
     help='Only use observation if elapsed time > tthresh [in ks]',\
     required=False,type=float)
 
+    parser.add_argument('-stdir','--storagedir',default='',\
+    help='Source detection threshold',\
+    required=True,type=str_to_str)
+
     args = vars(parser.parse_args())
     
     return args
@@ -113,13 +117,13 @@ srcradiusbkg = args['bkgrad']
 #Minimum number of counts
 mincts = args['minimum_cts']
 tthresh = args['threshold_exp_time']
+storagedir = args['storagedir'] + "/"
 
 #Separation between catalogue ULX position and source detection 
 dsep = 1e-5 #Adaptive separation step
 septhresh = 0.04 
 
 dirkey = "0*/proc/source_list*epn*.fits" 
-storagedir = "qpo_search/"
 stringspec = []
 for sourcefile in sorted(glob.glob(loc + dirkey)):
                                                                         
@@ -198,7 +202,7 @@ for sourcefile in sorted(glob.glob(loc + dirkey)):
                      " rateset=" + str(bkgrate) + " timebinsize=" +\
                      str(bkgflarebintime) +\
                    " maketimecolumn=yes makeratecolumn=yes"
-        commbkgfl2 = "cp " + str(bkgrate) + " ../../lags/" +\
+        commbkgfl2 = "cp " + str(bkgrate) + " ../../lag_freq/" +\
                     bkgrate_new
         commbkgfl3 = "ratethresh=$(bkgoptrate tssettabname=" +\
                      bkgrate + " | sed -n 3p)"
@@ -389,11 +393,11 @@ np.savetxt("filter_spec.sh",stringspec,fmt='%s',delimiter='   ')
 os.system("chmod u+x filter_spec.sh")
 os.system("./filter_spec.sh")
 
-for newsp in glob.glob(loc + "/lags/epn*spec*grp*.fits"):
+for newsp in glob.glob(loc + "/lag_freq/epn*spec*grp*.fits"):
     
     newsp = newsp.split("/")[-1]
     
-    hdulistref = fits.open("lags/" + newsp)
+    hdulistref = fits.open("lag_freq/" + newsp)
     header = hdulistref[2].header
     telapse = header['TELAPSE']
     obsid = newsp.split(".fits")[0].split("grp_")[1]        
