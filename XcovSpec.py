@@ -195,10 +195,6 @@ def arguments():
     'Boolean(Enter either True or False)'+\
     ', Int(Enter number of MCMC simulations)',\
     required=True,type=bool_to_str_mcmc,default=True)
-
-    parser.add_argument('-psdmods','--powspecmod',\
-    help="Model power spectral density? [Enter either True or False]",\
-    required=True,type=bool_to_str)
     
     parser.add_argument('-egrid','--energy_grid',default='False',\
     help='Specify comparison-band energy grid [in keV]',\
@@ -262,6 +258,10 @@ def arguments():
     help='Use epiclccorr to subtract background?',\
     required=True,type=bool_to_str)
 
+    parser.add_argument('-stdir','--storagedir',default='',\
+    help='Source directory location',\
+    required=True,type=str_to_str)
+
     ags = vars(parser.parse_args())
     
     return ags
@@ -271,15 +271,14 @@ args = arguments()
 # PSD parameters 
 gbinning = args['geombin']
 gbinningargs = str(gbinning[0]) + "," + str(gbinning[1])
-
 freqmin = args['freqmin']
 freqmax = args['freqmax']
 plotpsd = args['plotpsd']
 statpow = args['statspsd']
 splitscheme = args['splitscheme']
 normpsd = args['normpsd']
-psdmods = args['powspecmod']
 gencov = args['covspec']
+storagedir = args['storagedir']
 
 #Reference band energy (min and max)
 Emin = args['reference_energy_min']
@@ -373,37 +372,37 @@ bkgsubepiclc = args['bkg_sub']
 addflag = args['add_flag']
 
 commruncovxspec1 =\
-'python reduce_xmm.py -srcname ' +\
+'python ~/Documents/SEAWIND/code/Reduction/XMM/reduce_xmm.py -srcname ' +\
 str(srcname) + ' -obsids ' + str(stringobsidsel) + ' -refemin ' + str(Emin) +\
-' -refemax ' + str(Emax)
+' -refemax ' + str(Emax) 
 
 commruncovxspec2 =\
-'python srcdet_xmm.py -srad ' +\
+'python ~/Documents/SEAWIND/code/Reduction/XMM/srcdet_xmm.py -srad ' +\
 str(srcrad) + ' -brad ' + str(bkgrad) + ' -refemin ' +\
 str(Emin) + ' -refemax ' + str(Emax) + ' -srcdet ' +\
-str(sigthreshold)
+str(sigthreshold) + ' -stdir ' + str(storagedir)
 
 commruncovxspec3 =\
-'python extractspec_xmm.py ' +\
+'python ~/Documents/SEAWIND/code/Reduction/XMM/extractspec_xmm.py ' +\
 ' -srcname ' + str(srcname) + ' -rmflares ' + str(removeflares) +\
 ' -dtbinbkg ' + str(bkgflarebintime) + ' -srad ' +\
 str(srcrad) + ' -brad ' + str(bkgrad) + ' -mincts ' +\
 str(mincts) + ' -minbcts ' + str(minctsbkg) + ' -refemin ' +\
 str(Emin) + ' -refemax ' + str(Emax) + ' -texp ' +\
-str(tthresh)
+str(tthresh) + ' -stdir ' + str(storagedir)
 
 commruncovxspec4 =\
-'python reduce_xmm_lc.py -srcname ' +\
+'python ~/Documents/SEAWIND/code/Reduction/XMM/reduce_xmm_lc.py -srcname ' +\
 str(srcname) + ' -dtbincov ' + str(bintimecov) + ' -dtbinqpo ' +\
 str(bintimeqpo) + ' -sthresh ' + str(sigthreshold) +\
 ' -psearch ' + str(psearch) + ' -rmflares ' + str(removeflares) +\
 ' -bsub ' + str(bkgsubepiclc) + ' -aflag ' + str(addflag) +\
 ' -refemin ' + str(Emin) + ' -refemax ' + str(Emax) +\
 ' -egrid ' + str(energyargs) + ' -srcrad ' + str(srcrad) + ' -texp ' +\
-str(tthresh)
+str(tthresh) + ' -stdir ' + str(storagedir)
 
 commruncovxspec5 =\
-'python covariance.py -plc ' +\
+'python ~/Documents/SEAWIND/code/Timing/covariance.py -plc ' +\
 str(plotlc) + ' -plags ' + str(plotlags) + ' -ppsd ' + str(plotpsd) +\
 ' -split ' + str(splitscheme) + ' -statpower ' +\
 str(statpow) + ' -normpower ' + str(normpsd) + ' -flgaps ' +\
@@ -412,7 +411,8 @@ str(segmentlc) + ',' + str(int(tmin)) + "," + str(int(tmax)) +\
 ' -fmin ' + str(freqmin) + ' -fmax ' + str(freqmax) +\
 ' -gbin ' + str(gbinningargs) + ' -gscale ' + str(groupscale) +\
 ' -rmcmc ' + str(rmcmcargs) + ' -gencov ' + str(gencov) +\
-' -psdmods ' + str(psdmods) + ' -srcname ' + str(srcname)
+' -srcname ' + str(srcname) +\
+' -stdir ' + str(storagedir)
 
 stringcomms.append(commruncovxspec1)
 stringcomms.append(commruncovxspec2)
@@ -422,5 +422,5 @@ stringcomms.append(commruncovxspec5)
 np.savetxt("XcovSpec.sh",stringcomms,fmt='%s',delimiter='  ')
 os.system("chmod u+x XcovSpec.sh")
 os.system("./XcovSpec.sh")
-os.system("rm -rf 0*")
+os.system("rm -rf *.sh")
 
