@@ -107,6 +107,10 @@ def arguments():
     parser.add_argument('-rmflares','--remove_bkg_flares',default='False',\
     help='Remove background flares?',required=True,type=bool_to_str)
 
+    parser.add_argument('-stdir','--storagedir',default='',\
+    help='Source detection threshold',\
+    required=True,type=str_to_str)
+
     ags = vars(parser.parse_args())
     
     return ags
@@ -136,6 +140,7 @@ dec_src = csrc.dec.degree
 
 #Threshold exposure time
 rmflares = args['remove_bkg_flares']
+storagedir = args['storagedir']
 
 #Energy grid
 energies = args['energy_grid']
@@ -148,7 +153,6 @@ pirefmax = Emax*1000
 septhresh = 0.04 #Threshold separation
 dsep = 1e-5 #Adaptive separation step
 
-storagedir = "qpo_search/"
 pulsations_dir = "pulsation_search/"
 
 stringcov,stringpulse = [[],[]]

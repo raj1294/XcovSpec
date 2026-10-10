@@ -86,6 +86,10 @@ def arguments():
     help='Source detection threshold',\
     required=True,type=float)
 
+    parser.add_argument('-stdir','--storagedir',default='',\
+    help='Source detection threshold',\
+    required=True,type=str_to_str)
+
     args = vars(parser.parse_args())
     
     return args
@@ -105,6 +109,7 @@ sigthresh = args['sigthresh']
 srcradius = args['srcrad']
 #Background extraction region size
 srcradiusbkg = args['bkgrad']
+storagedir = args['storagedir']
 
 #Separation between catalogue ULX position and source detection 
 septhresh = 0.04 
@@ -119,7 +124,7 @@ obsidkey = "0*"
 ctref = 0
 stringdet = []
 stringdet.append("mkdir PSFs/")
-stringdet.append("mkdir qpo_search/")
+stringdet.append("mkdir " + storagedir)
 stringdet.append("mkdir pulsation_search/")
 for ObsId in sorted(glob.glob(obsidkey)):    
     ctr = 1
