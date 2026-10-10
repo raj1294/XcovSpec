@@ -177,9 +177,9 @@ def arguments():
     help="Generate Covariance Spectrum? [Enter either True or False]",\
     required=True,type=bool_to_str)
 
-    parser.add_argument('-psdmods','--powspecmod',\
-    help="Model power spectral density? [Enter either True or False]",\
-    required=True,type=bool_to_str)
+    parser.add_argument('-stdir','--storagedir',default='',\
+    help='Source detection threshold',\
+    required=True,type=str_to_str)
 
     ags = vars(parser.parse_args())
     
@@ -2034,7 +2034,7 @@ statpow = args['statspsd']
 splitscheme = args['splitscheme']
 normpsd = args['normpsd']
 gencov = args['covspec']
-psdmods = args['powspecmod']
+storagedir = args['storagedir']
 
 fminb = [freqmin]
 fmaxb = [freqmax]
@@ -2070,12 +2070,11 @@ plotlags = args['plotlags']
 
 #Group covariance spectrum
 groupscale = args['groupscale']
-storagedir = "qpo_search/"
 
 loc = os.getcwd()
 os.chdir(loc + "/" + storagedir + "/")
 
-keyobsid = "epn*net*obs*0*_1_*en1*comp*.lc"
+keyobsid = "epn*net*obs*0*_1_*en4*comp*.lc"
 obsidnum = []
 for fobsid in sorted(glob.glob(keyobsid)):
     obsid = fobsid.split(".lc")[0].split("_")[2].split("obs")[1]
@@ -2091,13 +2090,14 @@ instarr = ["epn"]
 labinst = ["EPN"]
 col = ["bo","go","ro"]
 
+psdmods = "False"
 plotmcmc = "False"
 plotcov = "False"
 comparecpsd = "False"
 removebt = "False"
-metmcmc = "timelags"
 plotlagfreq = "True"
 addphasewraps = "True"
+metmcmc = "timelags"
 
 for kn in range(len(obsidnum)):  
                                         
@@ -2107,7 +2107,7 @@ for kn in range(len(obsidnum)):
         Nenergies += 1  
                     
     keyobs1 = "epn_net_obs*"
-    keyobs2 = "*_1_*en1*ref.lc"
+    keyobs2 = "*_1_*en4*ref.lc"
             
     for tempreflcfile in sorted(glob.glob(keyobs1+str(obsidnum[kn])+keyobs2)):
                                                                                                         
