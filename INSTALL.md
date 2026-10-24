@@ -21,6 +21,7 @@ python XcovSpec.py -srcname "NGC 5204 X-1" -obsids 0405690501 -refemin 0.3 -refe
 
 Then finally:
 
+chmod u+x run.sh
 ./run.sh
 
 
