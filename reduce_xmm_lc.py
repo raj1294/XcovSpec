@@ -153,7 +153,7 @@ pirefmax = Emax*1000
 septhresh = 0.04 #Threshold separation
 dsep = 1e-5 #Adaptive separation step
 
-pulsations_dir = "pulsation_search/"
+pulsations_dir = "pulsation_search"
 
 stringcov,stringpulse = [[],[]]
 
