@@ -1,7 +1,7 @@
 To clone the repository:
 git clone https://github.com/raj1294/XcovSpec
 
-Then navigate to the XcovSpec directory:
+Then navigate to the XcovSpec directory: N.B: The directory "must" be named XcovSpec (don't change this name):
 cd XcovSpec
 
 Run install.sh:
