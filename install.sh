@@ -9,6 +9,6 @@ rm -f kapteyn-3.4.tar.gz
 cd kapteyn-3.4
 export CFLAGS="-Wno-error=int-conversion"
 python setup.py install
-cd ~/software/XcovSpec/
+cd ~/software/XcovSpec-main/
 python -m pip install numpy==2.0.0
 PYTHONPATH=/Users/raj1294/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}
