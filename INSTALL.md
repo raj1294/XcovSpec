@@ -11,11 +11,7 @@ chmod u+x install.sh
 
 Note: Users must have pre-installed anaconda, XMM-SAS (https://www.cosmos.esa.int/web/xmm-newton/sas-installation), HEASOFT and XSPEC (with version compatible with the user’s system (see https://heasarc.gsfc.nasa.gov/docs/software/lheasoft/download.html). Try conda install —name xcovspec heasoft, however I would try to install from source via the official webpages. The developer does not take responsibility for installing the above packages. Please note that this version of XcovSpec is designed to be compatible with Mac Apple Darwin 24.4.0 M2, although earlier or later versions will work provided python v3.10 can be installed. Please don’t remove any contents from the install.sh file.
 
-When you run install.sh, the terminal will install conda packages and request the user to proceed with [y/n] from time to time.
-
-To run the code: 
-
-Set the following PYTHONPATH before running the code
+When you run install.sh, the terminal will install conda packages and request the user to proceed with [y/n] from time to time. Once the installation finishes successfully, you can run the code. Set the following PYTHONPATH before doing so
 
 PYTHONPATH=$HOME/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}
 
