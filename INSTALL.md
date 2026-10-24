@@ -7,6 +7,7 @@ cd XcovSpec
 Run install.sh:
 
 chmod u+x install.sh
+
 ./install.sh 
 
 Note: Users must have pre-installed anaconda, XMM-SAS (https://www.cosmos.esa.int/web/xmm-newton/sas-installation), HEASOFT and XSPEC (with version compatible with the user’s system (see https://heasarc.gsfc.nasa.gov/docs/software/lheasoft/download.html). Try conda install —name xcovspec heasoft, however I would try to install from source via the official webpages. The developer does not take responsibility for installing the above packages. Please note that this version of XcovSpec is designed to be compatible with Mac Apple Darwin 24.4.0 M2, although earlier or later versions will work provided python v3.10 can be installed. Please don’t remove any contents from the install.sh file.
@@ -22,6 +23,7 @@ python XcovSpec.py -srcname "NGC 5204 X-1" -obsids 0405690501 -refemin 0.3 -refe
 Then finally:
 
 chmod u+x run.sh
+
 ./run.sh
 
 
