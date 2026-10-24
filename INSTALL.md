@@ -18,7 +18,7 @@ PYTHONPATH=$HOME/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPA
 
 Then simply edit the run.sh file:
 
-python XcovSpec.py -srcname "NGC 5204 X-1" -obsids 0405690501 -refemin 0.3 -refemax 12.0 -mincts 30 -minbcts 30 -dtbinqpo 0.07336496 -dtbincov 100 -dtbinbkg 100 -srad 0.0083 -brad 0.0083 -srcdet 1e-16 -rmflares False -texp 5 -plc True -plags True -ppsd True -split False -statpower False -normpower abs -flgaps True,B -seglc True,0,500 -fmin 1e-4 -fmax 5e-4 -gbin 1.0,0.0 -gscale 1 -rmcmc False,1000 -gencov True -psdmods False -egrid minmax,0.3,10.0,4 -aflag True -psearch False -bsub False
+python XcovSpec.py -srcname "NGC 1313 X-1" -obsids 0803990301 -refemin 0.3 -refemax 12.0 -mincts 50 -minbcts 50 -dtbinqpo 100 -dtbincov 100 -dtbinbkg 100 -srad 0.0083 -brad 0.0083 -srcdet 1e-16 -rmflares False -texp 5 -split False -statpower False -normpower abs -flgaps True,B -seglc True,0,500 -fmin 1e-4 -fmax 5e-4 -gbin 1.1,0.1 -gscale 1 -rmcmc False,1000 -plc False -plags False -ppsd False -gencov True -egrid minmax,0.3,10.0,15 -aflag True -psearch True -bsub True -stdir lag_freq
 
 Then finally:
 
