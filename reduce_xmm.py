@@ -1,9 +1,9 @@
 #Reduce XMM (EPIC-pn and EPIC-MOS) data and extract time averaged spectra
 import numpy as np
-import glob, os
+import os
 import argparse
 from astropy.coordinates import SkyCoord
-from astroquery.heasarc import Heasarc
+from astroquery.esa.xmm_newton import XMMNewton
 
 ks = 1000
 loc = os.getcwd() + "/"
@@ -106,24 +106,10 @@ obsidsel = args['observation_ids']
 septhresh = 0.04 
 dsep = 1e-5 #Adaptive separation step
 
-#Source name
-pos = SkyCoord.from_name(srcname)
-tab = Heasarc.query_region(pos, catalog='xmmmaster')
-obsid = tab['obsid'].value
-
-#Download and Reduce
-stringspec,stringreduce,stringdet,stringdownload = [[],[],[],[]]
-
-#Obs IDs
-ObsId = []
-for jsel in range(len(obsidsel)):    
-    for ksel in range(len(obsid)):
-        if(obsidsel[jsel]==obsid[ksel]):     
-            ObsId.append(obsidsel[jsel])
-ObsId = np.array(ObsId)
-
-for kobs in range(len(ObsId)):
-                        
+ObsId = obsidsel
+stringdownload,stringreduce = [[],[]]
+for kobs in range(len(obsidsel)):
+    
     comm1 = "mkdir " + ObsId[kobs]
     comm2 = "mkdir " + ObsId[kobs]  + "/odf/"
     
@@ -134,9 +120,9 @@ for kobs in range(len(ObsId)):
     
     url_download =\
     "'https://nxsa.esac.esa.int/nxsa-sl/servlet/data-action-aio?obsno="+\
-    str(ObsId[kobs])+"&level=ODF'"   
-    
+    str(ObsId[kobs])+"&level=ODF'"
     comm3 = "wget -O " + outfile + " " + url_download
+        
     stringdownload.append(comm3)
         
     comm4 = "mv *.tar " + ObsId[kobs] + "/odf/"        
