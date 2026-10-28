@@ -10,8 +10,6 @@ cd XcovSpec
 
 chmod u+x install.sh
 
-Inspect install.sh to unset PFILES and set the HEADAS environment variable.
-
 ./install.sh 
 
 source activate xcovspec
