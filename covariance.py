@@ -13,6 +13,14 @@ from scipy import stats, fft, integrate, special, signal
 from astropy.io import fits
 import mpmath
 
+comm1 = "unset PFILES"
+comm2 = "export HEADAS=/Users/raj1294/software/heasoft-6.35.1/aarch64-apple-darwin24.4.0"
+comm3 = "source ${HEADAS}/headas-init.sh"
+
+os.system(comm1)
+os.system(comm2)
+os.system(comm3)
+
 #Ignore warnings
 warnings.filterwarnings('ignore')
 
