@@ -401,6 +401,10 @@ str(bintimeqpo) + ' -sthresh ' + str(sigthreshold) +\
 ' -egrid ' + str(energyargs) + ' -srcrad ' + str(srcrad) + ' -texp ' +\
 str(tthresh) + ' -stdir ' + str(storagedir)
 
+commruncovxspec4bi = "unset PFILES"
+commruncovxspec4bii = "export HEADAS=/Users/raj1294/software/heasoft-6.35.1/aarch64-apple-darwin24.4.0"
+commruncovxspec4biii = "source ${HEADAS}/headas-init.sh"
+
 commruncovxspec5 =\
 'python covariance.py -plc ' +\
 str(plotlc) + ' -plags ' + str(plotlags) + ' -ppsd ' + str(plotpsd) +\
@@ -418,6 +422,9 @@ stringcomms.append(commruncovxspec1)
 stringcomms.append(commruncovxspec2)
 stringcomms.append(commruncovxspec3)
 stringcomms.append(commruncovxspec4)
+stringcomms.append(commruncovxspec4bi)
+stringcomms.append(commruncovxspec4bii)
+stringcomms.append(commruncovxspec4biii)
 stringcomms.append(commruncovxspec5)
 np.savetxt("XcovSpec.sh",stringcomms,fmt='%s',delimiter='  ')
 os.system("chmod u+x XcovSpec.sh")
