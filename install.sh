@@ -12,5 +12,7 @@ python setup.py install
 cd ~/software/XcovSpec/
 python -m pip install numpy==2.0.0
 PYTHONPATH=/Users/raj1294/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}
+
+#Customise these variables
 export SAS_DIR=/Users/raj1294/software/xmm_sas/xmmsas_22.1.0-a8f2c2afa-20250303
 source $SAS_DIR/setsas.sh 
