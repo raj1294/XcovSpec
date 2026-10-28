@@ -422,5 +422,5 @@ stringcomms.append(commruncovxspec5)
 np.savetxt("XcovSpec.sh",stringcomms,fmt='%s',delimiter='  ')
 os.system("chmod u+x XcovSpec.sh")
 os.system("./XcovSpec.sh")
-os.system("rm -rf *.sh")
+#os.system("rm -rf *.sh")
 
