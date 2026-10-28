@@ -12,3 +12,6 @@ python setup.py install
 cd ~/software/XcovSpec/
 python -m pip install numpy==2.0.0
 PYTHONPATH=/Users/raj1294/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}
+unset PFILES 
+export HEADAS=/Users/raj1294/software/heasoft-6.35.1/aarch64-apple-darwin24.4.0
+source ${HEADAS}/headas-init.sh
