@@ -1,4 +1,5 @@
 To clone the repository:
+
 git clone https://github.com/raj1294/XcovSpec
 
 Then navigate to the XcovSpec directory: N.B: The directory "must" be named XcovSpec (don't change this name). Note that users must have pre-installed anaconda, XMM-SAS (https://www.cosmos.esa.int/web/xmm-newton/sas-installation), HEASOFT and XSPEC (with version compatible with the user’s system (see https://heasarc.gsfc.nasa.gov/docs/software/lheasoft/download.html). 
