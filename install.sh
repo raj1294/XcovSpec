@@ -16,7 +16,7 @@ PYTHONPATH=/Users/raj1294/anaconda3/envs/xcovspec/lib/python3.10/site-packages:$
 #Customise:
 export SAS_DIR=/Users/raj1294/software/xmm_sas/xmmsas_22.1.0-a8f2c2afa-20250303
 source $SAS_DIR/setsas.sh 
-
 #unset PFILES 
-#export HEADAS=/Users/raj1294/software/heasoft-6.35.1/aarch64-apple-darwin24.4.0
-#source ${HEADAS}/headas-init.sh
+export HEADAS=/Users/raj1294/software/heasoft-6.35.1/aarch64-apple-darwin24.4.0
+source ${HEADAS}/headas-init.sh
+
