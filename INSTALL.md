@@ -12,7 +12,8 @@ chmod u+x install.sh
 Inspect install.sh to unset PFILES and set the HEADAS environment variable.
 ./install.sh 
 
-Then set the PYTHONPATH:
+Then set the PYTHONPATH: 
+
 PYTHONPATH=$HOME/anaconda3/envs/xcovspec/lib/python3.10/site-packages:${PYTHONPATH}
 
 Also, be aware that one needs to initialise heasoft prior to running the code, ensuring that HEADAS points to the correct directory. Also, do: "unset PFILES" as this ensures there is no conflict between HEADAS and CIAO. Once the above environmental variables are set, simply edit the run.sh file:
