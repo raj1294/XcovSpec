@@ -672,16 +672,16 @@ for ObsId in sorted(glob.glob(obsidkey)):
                 if(bkgsubepiclc=="False"):
 
                     stringcov.append("mv " + filtlcref +\
-                                  " ../../" + storagedir + newlcref)
+                                  " ../../" + storagedir + "/" + newlcref)
                                   
                     stringcov.append("mv " + srclc_comp +\
-                                  " ../../" + storagedir + newlc_comp)
+                                  " ../../" + storagedir + "/" + newlc_comp)
                                   
                     stringcov.append("mv " + filtlcbkg +\
-                                  " ../../" + storagedir + newlcbkgref)
+                                  " ../../" + storagedir + "/" + newlcbkgref)
                                   
                     stringcov.append("mv " + filtlcbkg_comp +\
-                                  " ../../" + storagedir + newlcbkgcomp)
+                                  " ../../" + storagedir + "/" + newlcbkgcomp)
                                   
                 
                 #Background reference-band and comparison-band LCs  
