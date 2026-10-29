@@ -132,9 +132,12 @@ bintimepulse = args['binning_time_qpo']
 tthresh = args['threshold_exp_time']*ks
 Emin = args['reference_energy_min'] #Ref EMIN
 Emax = args['reference_energy_max'] #Ref EMAX
+
 #Source detection
+from astropy.coordinates import get_icrs_coordinates
 srcname = args['sourcename']
-csrc = SkyCoord.from_name(srcname)
+fixed_name = srcname.replace("−", "-")
+csrc = get_icrs_coordinates(fixed_name)
 ra_src = csrc.ra.degree
 dec_src = csrc.dec.degree
 
@@ -317,11 +320,10 @@ for ObsId in sorted(glob.glob(obsidkey)):
             
             #Comparison band LCs
             for k in range(len(energies)-1):
-                
                                     
                 PIMIN = str(int(pimin[k]))
                 PIMAX = str(int(pimax[k]))
-                                                                                                                                                                                            
+                                                                                                    
                 filtlcref = "epn_src_obs" + ObsId + "_" +\
                             str(srcfile[-6]) +\
                             "_en" + str(k+1) + "_ref.lc"

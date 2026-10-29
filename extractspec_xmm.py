@@ -1,16 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Aug  6 22:21:35 2026
-
-@author: raj1294
-"""
 #Reduce XMM (EPIC-pn and EPIC-MOS) data and extract time averaged spectra
 import numpy as np
 from astropy.io import fits
 import glob, os
 import argparse
 from astropy.coordinates import SkyCoord
+from astropy.utils.data import conf
 
 ks = 1000
 loc = os.getcwd() + "/"
@@ -40,7 +34,6 @@ def arguments():
             
         return obsids
 
-    
     #Arguments to code
     parser = argparse.ArgumentParser(\
     description='Generate time-averaged energy spectra of' +\
@@ -95,8 +88,9 @@ def arguments():
 args = arguments()
 srcname = args['sourcename'] #Source name
 
-#Source detection
-csrc = SkyCoord.from_name(srcname)
+from astropy.coordinates import get_icrs_coordinates
+fixed_name = srcname.replace("−", "-")
+csrc = get_icrs_coordinates(fixed_name)
 ra_src = csrc.ra.degree
 dec_src = csrc.dec.degree
 
