@@ -86,11 +86,14 @@ def arguments():
     return args
 
 args = arguments()
+
+from astroquery.mast import Mast
 srcname = args['sourcename'] #Source name
 
-from astropy.coordinates import get_icrs_coordinates
-fixed_name = srcname.replace("−", "-")
-csrc = get_icrs_coordinates(fixed_name)
+#fixed_name = srcname.replace("−", "-")
+#csrc = get_icrs_coordinates(srcname)
+
+csrc = Mast.resolve_object(srcname)
 ra_src = csrc.ra.degree
 dec_src = csrc.dec.degree
 

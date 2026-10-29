@@ -134,10 +134,15 @@ Emin = args['reference_energy_min'] #Ref EMIN
 Emax = args['reference_energy_max'] #Ref EMAX
 
 #Source detection
-from astropy.coordinates import get_icrs_coordinates
-srcname = args['sourcename']
-fixed_name = srcname.replace("−", "-")
-csrc = get_icrs_coordinates(fixed_name)
+from astroquery.mast import Mast
+srcname = args['sourcename'] #Source name
+
+#from astropy.coordinates import get_icrs_coordinates
+#srcname = args['sourcename']
+#fixed_name = srcname.replace("−", "-")
+#csrc = get_icrs_coordinates(fixed_name)
+
+csrc = Mast.resolve_object(srcname)
 ra_src = csrc.ra.degree
 dec_src = csrc.dec.degree
 
