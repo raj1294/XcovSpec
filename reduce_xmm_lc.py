@@ -43,14 +43,13 @@ def arguments():
             Nenergy = int(valarr[3])
             egrid = np.logspace(np.log10(emin),np.log10(emax),Nenergy)
             
-        if(method=='array'):
+        if(method=="array"):
             
             elist = valarr[1:]
             for kl in range(len(elist)):
                 elist[kl] = float(elist[kl])
             egrid = np.array(elist)
-        
-        
+    
         return egrid
     
     parser = argparse.ArgumentParser(\
@@ -136,15 +135,14 @@ Emax = args['reference_energy_max'] #Ref EMAX
 #Source detection
 from astroquery.mast import Mast
 srcname = args['sourcename'] #Source name
+csrc = Mast.resolve_object(srcname)
+ra_src = csrc.ra.degree
+dec_src = csrc.dec.degree
 
 #from astropy.coordinates import get_icrs_coordinates
 #srcname = args['sourcename']
 #fixed_name = srcname.replace("−", "-")
 #csrc = get_icrs_coordinates(fixed_name)
-
-csrc = Mast.resolve_object(srcname)
-ra_src = csrc.ra.degree
-dec_src = csrc.dec.degree
 
 #Threshold exposure time
 rmflares = args['remove_bkg_flares']
@@ -533,7 +531,6 @@ for ObsId in sorted(glob.glob(obsidkey)):
                         stringpulse.append(commbkglc)
                         stringpulse.append(commfullev)
                                                 
-                    
                     if(addflag=="True"):
                         
                         #Source and background light-curves

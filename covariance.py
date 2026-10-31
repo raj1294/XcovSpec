@@ -108,6 +108,7 @@ def arguments():
     parser = argparse.ArgumentParser(\
     description='Generate covariance spectra, lag-energy spectra '+\
                 'plot power-spectral densities and plot light-curves')
+                
     parser.add_argument('-plc','--plotlc',\
     help='Plot LC? [Enter either True or False]',\
     required=True,type=bool_to_str,default=True)
@@ -3061,7 +3062,7 @@ for kn in range(len(obsidnum)):
                         mlagerr.append(mean_lagerr)
 
                         if(plotlagfreq=="True"):
-                                                                                                                                                                                                                                                                                                           
+                                                                                                
                             fig, ax = plt.subplots(figsize=(10,7))
                                                 
                             plt.title("Lag frequency spectrum: [" +\
