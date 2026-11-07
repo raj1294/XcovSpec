@@ -57,8 +57,7 @@ options:
   -gscale GROUPSCALE, --groupscale GROUPSCALE Scaling factor to group Covariance spectrum [Enter an integer value]
                         
   -rmcmc RUNMCMC, --runmcmc RUNMCMC Run MCMC? [Enter 2 values separated by comma of type: Boolean(Enter either True or False), Int(Enter number of MCMC simulations)
-  -psdmods POWSPECMOD, --powspecmod POWSPECMOD Model power spectral density? [Enter either True or False]
-                        
+                          
   -egrid ENERGY_GRID, --energy_grid ENERGY_GRID Specify comparison-band energy grid [in keV]
                         
   -gencov COVSPEC, --covspec COVSPEC Generate Covariance Spectrum? [Enter either True or False]
