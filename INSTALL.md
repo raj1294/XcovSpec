@@ -4,6 +4,8 @@ git clone https://github.com/raj1294/XcovSpec
 
 Then navigate to the XcovSpec directory: N.B: The directory "must" be named XcovSpec (don't change this name). Note that users must have pre-installed anaconda, XMM-SAS (https://www.cosmos.esa.int/web/xmm-newton/sas-installation), HEASOFT and XSPEC (with version compatible with the user’s system (see https://heasarc.gsfc.nasa.gov/docs/software/lheasoft/download.html). 
 
+At minimum, the following packages are required in your base environment: DS9, HEASOFT, XMM_SAS (and the associated CCF calibration files). Please ensure that DS9 is properly initialised and that X11 is configured correctly. The developer does not take full responsibility for installing these three packages (they should ideally be installed from source, depending on your Mac’s requirements). 
+
 cd XcovSpec
 
 chmod u+x install.sh
@@ -34,6 +36,6 @@ N.B: The user must have pre-installed heasoft and headas (with xspec enabled) in
 
 conda install heasarc heasoft (inside the xcovspec environment)
 
-I would try to install heasoft from source via the official webpages. The developer does not take responsibility for installing heasoft. Please note that this version of XcovSpec is designed to be compatible with Mac Apple Darwin 24.4.0 M2, although earlier or later versions will work provided python v3.10 can be installed. Please don’t remove contents from the install.sh file. When you run install.sh, the terminal will install conda packages and request the user to proceed with [y/n]. Once the installation finishes successfully, you can run the code. 
+I would try to install heasoft from source via the official webpages. Please note that this version of XcovSpec is designed to be compatible with Mac Apple Darwin 24.4.0 M2, although earlier or later versions will work provided python v3.10 can be installed. Please don’t remove contents from the install.sh file. When you run install.sh, the terminal will install conda packages and request the user to proceed with [y/n]. Once the installation finishes successfully, you can run the code. 
 
 Also, be aware that one needs to initialise heasoft prior to running covariance.py, ensuring that HEADAS points to the correct directory. Also, "unset PFILES" as this ensures there is no conflict between HEADAS and CIAO. One can also run individual scripts from intermediate stages of the pipeline by commenting out the xcovspec.py file.
